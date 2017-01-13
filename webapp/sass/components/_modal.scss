@@ -12,7 +12,6 @@
 
     .modal-body {
         max-height: calc(90vh - 62px);
-        overflow: auto;
         padding: 20px 15px;
     }
 
@@ -26,6 +25,21 @@
 
         .suggestion-list__content {
             max-height: 150px;
+        }
+
+        .edit-post-footer {
+            font-size: 13px;
+            position: relative;
+            display: inline-block;
+
+            .post-error {
+                position: relative;
+                font-weight: normal;
+                margin-bottom: 0;
+                font-size: .85em;
+                @include opacity(.55);
+                top: 3px;
+            }
         }
     }
 
@@ -67,6 +81,10 @@
                     @include opacity(.7);
                 }
             }
+        }
+
+        .alert {
+            margin-bottom: 0;
         }
 
         .custom-textarea {
@@ -117,13 +135,18 @@
         }
 
         .modal-dialog {
+            margin-bottom: 0;
             margin-left: auto;
             margin-right: auto;
             max-width: 95%;
+
+            &.modal-xl {
+                width: 800px;
+            }
         }
 
         .modal-push-down {
-            margin-top: 5%;
+            margin-top: 60px;
         }
 
         .modal-next-bar {
@@ -184,7 +207,7 @@
             .btn {
                 &.btn-primary {
                     float: right;
-                    margin: -4px 25px 0 0;
+                    margin: -4px 33px 0 0;
                     position: relative;
 
                     i {
@@ -223,12 +246,6 @@
             left: 0;
             position: absolute;
             top: 0;
-        }
-
-        &.more-channel__modal {
-            .modal-body {
-                padding: 0;
-            }
         }
 
         .modal-image {
@@ -430,9 +447,23 @@
                 }
             }
         }
+
+        &.more-channel__modal {
+            .modal-body {
+                overflow-x: hidden;
+                padding: 10px 0 15px;
+            }
+
+            .channel-count {
+                @include opacity(.8);
+                float: right;
+                margin-top: 5px;
+            }
+        }
     }
 
     .more-modal {
+
         .user-list {
             margin-top: 10px;
             overflow-x: hidden;
@@ -442,12 +473,12 @@
 
         .modal-body {
             overflow-x: hidden;
-            padding: 10px 0 20px;
+            padding: 10px 0 15px;
         }
 
         .filter-row {
-            @include clearfix;
-            margin: 10px 0;
+            margin: 5px 0 10px;
+            width: 300px;
         }
 
         .member-count {
@@ -485,11 +516,13 @@
 
 
 .status-wrapper {
+    display: inline-block;
+    height: 32px;
     position: relative;
 
     &:after {
         border-radius: 100%;
-        bottom: 4px;
+        bottom: -2px;
         content: '';
         display: block;
         height: 8px;
@@ -508,7 +541,15 @@
 .more-modal__list {
     display: flex;
     flex-direction: column;
-    overflow: auto;
+
+    .browser--ie & {
+        flex: 20;
+    }
+
+    > div {
+        min-height: 100%;
+        overflow: auto;
+    }
 
     .popover & {
         font-size: .95em;
@@ -553,6 +594,7 @@
     .more-modal__actions {
         flex-grow: 0;
         flex-shrink: 0;
+        margin: 5px 0 10px;
         padding-left: 20px;
     }
 
@@ -575,7 +617,7 @@
     .more-modal__row {
         border-bottom: 1px solid $light-gray;
         display: flex;
-        padding: 8px 15px;
+        padding: 10px 15px;
     }
 
     p {
@@ -587,17 +629,42 @@
     }
 }
 
+.member-select__container {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+}
+
 .filtered-user-list {
     display: flex;
     flex-direction: column;
+    height: calc(90vh - 120px);
+    width: 100%;
 
-    .filter-row {
-        flex-grow: 0;
-        flex-shrink: 0;
+    > div {
+        flex: 1 1 auto;
     }
 
-    .user-list {
-        flex-grow: 1;
-        flex-shrink: 1;
+    .more-modal__list {
+        flex-grow: 500;
+    }
+
+    .filter-button {
+        .btn {
+            height: 34px;
+        }
+    }
+
+    .filter-controls {
+        padding: 1em 1.5em 0;
+
+        .filter-control__next {
+            float: right;
+        }
+    }
+
+    .filter-button {
+        margin-left: 0;
+        padding-left: 0;
     }
 }

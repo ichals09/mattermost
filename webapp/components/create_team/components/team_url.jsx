@@ -27,37 +27,63 @@ export default class TeamUrl extends React.Component {
             isLoading: false
         };
     }
+
     submitBack(e) {
         e.preventDefault();
         this.props.state.wizard = 'display_name';
         this.props.updateParent(this.props.state);
     }
+
     submitNext(e) {
         e.preventDefault();
 
         const name = ReactDOM.findDOMNode(this.refs.name).value.trim();
-        if (!name) {
-            this.setState({nameError: Utils.localizeMessage('create_team.team_url.required', 'This field is required')});
-            return;
-        }
-
         const cleanedName = Utils.cleanUpUrlable(name);
-
         const urlRegex = /^[a-z]+([a-z\-0-9]+|(__)?)[a-z0-9]+$/g;
-        if (cleanedName !== name || !urlRegex.test(name)) {
-            this.setState({nameError: Utils.localizeMessage('create_team.team_url.regex', "Use only lower case letters, numbers and dashes. Must start with a letter and can't end in a dash.")});
-            return;
-        } else if (cleanedName.length < Constants.MIN_TEAMNAME_LENGTH || cleanedName.length > Constants.MAX_TEAMNAME_LENGTH) {
-            this.setState({nameError: Utils.localizeMessage('create_team.team_url.charLength', 'Name must be 4 or more characters up to a maximum of 15')});
+
+        if (!name) {
+            this.setState({nameError: (
+                <FormattedMessage
+                    id='create_team.team_url.required'
+                    defaultMessage='This field is required'
+                />)
+            });
             return;
         }
 
-        if (global.window.mm_config.RestrictTeamNames === 'true') {
-            for (let index = 0; index < Constants.RESERVED_TEAM_NAMES.length; index++) {
-                if (cleanedName.indexOf(Constants.RESERVED_TEAM_NAMES[index]) === 0) {
-                    this.setState({nameError: Utils.localizeMessage('create_team.team_url.taken', 'URL is taken or contains a reserved word')});
-                    return;
-                }
+        if (cleanedName.length < Constants.MIN_TEAMNAME_LENGTH || cleanedName.length > Constants.MAX_TEAMNAME_LENGTH) {
+            this.setState({nameError: (
+                <FormattedMessage
+                    id='create_team.team_url.charLength'
+                    defaultMessage='Name must be {min} or more characters up to a maximum of {max}'
+                    values={{
+                        min: Constants.MIN_TEAMNAME_LENGTH,
+                        max: Constants.MAX_TEAMNAME_LENGTH
+                    }}
+                />)
+            });
+            return;
+        }
+
+        if (cleanedName !== name || !urlRegex.test(name)) {
+            this.setState({nameError: (
+                <FormattedMessage
+                    id='create_team.team_url.regex'
+                    defaultMessage="Use only lower case letters, numbers and dashes. Must start with a letter and can't end in a dash."
+                />)
+            });
+            return;
+        }
+
+        for (let index = 0; index < Constants.RESERVED_TEAM_NAMES.length; index++) {
+            if (cleanedName.indexOf(Constants.RESERVED_TEAM_NAMES[index]) === 0) {
+                this.setState({nameError: (
+                    <FormattedMessage
+                        id='create_team.team_url.taken'
+                        defaultMessage='URL is taken or contains a reserved word'
+                    />)
+                });
+                return;
             }
         }
 
@@ -69,7 +95,12 @@ export default class TeamUrl extends React.Component {
         checkIfTeamExists(name,
             (foundTeam) => {
                 if (foundTeam) {
-                    this.setState({nameError: Utils.localizeMessage('create_team.team_url.unavailable', 'This URL is unavailable. Please try another.')});
+                    this.setState({nameError: (
+                        <FormattedMessage
+                            id='create_team.team_url.unavailable'
+                            defaultMessage='This URL is unavailable. Please try another.'
+                        />)
+                    });
                     this.setState({isLoading: false});
                     return;
                 }

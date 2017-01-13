@@ -80,58 +80,196 @@ class SystemAnalytics extends React.Component {
 
     render() {
         const stats = this.state.stats;
+        const isLicensed = global.window.mm_license.IsLicensed === 'true';
+        const skippedIntensiveQueries = stats[StatTypes.TOTAL_POSTS] === -1;
+        const postCountsDay = formatPostsPerDayData(stats[StatTypes.POST_PER_DAY]);
+        const userCountsWithPostsDay = formatUsersWithPostsPerDayData(stats[StatTypes.USERS_WITH_POSTS_PER_DAY]);
 
-        let advancedCounts;
-        let advancedGraphs;
         let banner;
+        let postCount;
+        let postTotalGraph;
+        let activeUserGraph;
+        if (skippedIntensiveQueries) {
+            banner = (
+                <div className='banner'>
+                    <div className='banner__content'>
+                        <FormattedHTMLMessage
+                            id='analytics.system.skippedIntensiveQueries'
+                            defaultMessage="To maximize performance, some statistics are disabled. You can re-enable them in config.json. See: <a href='https://docs.mattermost.com/administration/statistics.html' target='_blank'>https://docs.mattermost.com/administration/statistics.html</a>"
+                        />
+                    </div>
+                </div>
+            );
+        } else {
+            postCount = (
+                <StatisticCount
+                    title={
+                        <FormattedMessage
+                            id='analytics.system.totalPosts'
+                            defaultMessage='Total Posts'
+                        />
+                    }
+                    icon='fa-comment'
+                    count={stats[StatTypes.TOTAL_POSTS]}
+                />
+            );
+
+            postTotalGraph = (
+                <div className='row'>
+                    <LineChart
+                        title={
+                            <FormattedMessage
+                                id='analytics.system.totalPosts'
+                                defaultMessage='Total Posts'
+                            />
+                        }
+                        data={postCountsDay}
+                        options={{
+                            legend: {
+                                display: false
+                            }
+                        }}
+                        width='740'
+                        height='225'
+                    />
+                </div>
+            );
+
+            activeUserGraph = (
+                <div className='row'>
+                    <LineChart
+                        title={
+                            <FormattedMessage
+                                id='analytics.system.activeUsers'
+                                defaultMessage='Active Users With Posts'
+                            />
+                        }
+                        data={userCountsWithPostsDay}
+                        options={{
+                            legend: {
+                                display: false
+                            }
+                        }}
+                        width='740'
+                        height='225'
+                    />
+                </div>
+            );
+        }
+
+        let advancedStats;
+        let advancedGraphs;
+        let sessionCount;
+        let commandCount;
+        let incomingCount;
+        let outgoingCount;
         if (global.window.mm_license.IsLicensed === 'true') {
-            advancedCounts = (
+            sessionCount = (
+                <StatisticCount
+                    title={
+                        <FormattedMessage
+                            id='analytics.system.totalSessions'
+                            defaultMessage='Total Sessions'
+                        />
+                    }
+                    icon='fa-signal'
+                    count={stats[StatTypes.TOTAL_SESSIONS]}
+                />
+            );
+
+            commandCount = (
+                <StatisticCount
+                    title={
+                        <FormattedMessage
+                            id='analytics.system.totalCommands'
+                            defaultMessage='Total Commands'
+                        />
+                    }
+                    icon='fa-terminal'
+                    count={stats[StatTypes.TOTAL_COMMANDS]}
+                />
+            );
+
+            incomingCount = (
+                <StatisticCount
+                    title={
+                        <FormattedMessage
+                            id='analytics.system.totalIncomingWebhooks'
+                            defaultMessage='Incoming Webhooks'
+                        />
+                    }
+                    icon='fa-arrow-down'
+                    count={stats[StatTypes.TOTAL_IHOOKS]}
+                />
+            );
+
+            outgoingCount = (
+                <StatisticCount
+                    title={
+                        <FormattedMessage
+                            id='analytics.system.totalOutgoingWebhooks'
+                            defaultMessage='Outgoing Webhooks'
+                        />
+                    }
+                    icon='fa-arrow-up'
+                    count={stats[StatTypes.TOTAL_OHOOKS]}
+                />
+            );
+
+            advancedStats = (
                 <div className='row'>
                     <StatisticCount
                         title={
                             <FormattedMessage
-                                id='analytics.system.totalSessions'
-                                defaultMessage='Total Sessions'
+                                id='analytics.system.totalWebsockets'
+                                defaultMessage='WebSocket Conns'
                             />
                         }
-                        icon='fa-signal'
-                        count={stats[StatTypes.TOTAL_SESSIONS]}
+                        icon='fa-user'
+                        count={stats[StatTypes.TOTAL_WEBSOCKET_CONNECTIONS]}
                     />
                     <StatisticCount
                         title={
                             <FormattedMessage
-                                id='analytics.system.totalCommands'
-                                defaultMessage='Total Commands'
+                                id='analytics.system.totalMasterDbConnections'
+                                defaultMessage='Master DB Conns'
                             />
                         }
                         icon='fa-terminal'
-                        count={stats[StatTypes.TOTAL_COMMANDS]}
+                        count={stats[StatTypes.TOTAL_MASTER_DB_CONNECTIONS]}
                     />
                     <StatisticCount
                         title={
                             <FormattedMessage
-                                id='analytics.system.totalIncomingWebhooks'
-                                defaultMessage='Incoming Webhooks'
+                                id='analytics.system.totalReadDbConnections'
+                                defaultMessage='Replica DB Conns'
                             />
                         }
-                        icon='fa-arrow-down'
-                        count={stats[StatTypes.TOTAL_IHOOKS]}
-                    />
-                    <StatisticCount
-                        title={
-                            <FormattedMessage
-                                id='analytics.system.totalOutgoingWebhooks'
-                                defaultMessage='Outgoing Webhooks'
-                            />
-                        }
-                        icon='fa-arrow-up'
-                        count={stats[StatTypes.TOTAL_OHOOKS]}
+                        icon='fa-terminal'
+                        count={stats[StatTypes.TOTAL_READ_DB_CONNECTIONS]}
                     />
                 </div>
             );
 
             const channelTypeData = formatChannelDoughtnutData(stats[StatTypes.TOTAL_PUBLIC_CHANNELS], stats[StatTypes.TOTAL_PRIVATE_GROUPS], this.props.intl);
             const postTypeData = formatPostDoughtnutData(stats[StatTypes.TOTAL_FILE_POSTS], stats[StatTypes.TOTAL_HASHTAG_POSTS], stats[StatTypes.TOTAL_POSTS], this.props.intl);
+
+            let postTypeGraph;
+            if (stats[StatTypes.TOTAL_POSTS] !== -1) {
+                postTypeGraph = (
+                    <DoughnutChart
+                        title={
+                            <FormattedMessage
+                                id='analytics.system.postTypes'
+                                defaultMessage='Posts, Files and Hashtags'
+                            />
+                        }
+                        data={postTypeData}
+                        width='300'
+                        height='225'
+                    />
+                );
+            }
 
             advancedGraphs = (
                 <div className='row'>
@@ -146,17 +284,7 @@ class SystemAnalytics extends React.Component {
                         width='300'
                         height='225'
                     />
-                    <DoughnutChart
-                        title={
-                            <FormattedMessage
-                                id='analytics.system.postTypes'
-                                defaultMessage='Posts, Files and Hashtags'
-                            />
-                        }
-                        data={postTypeData}
-                        width='300'
-                        height='225'
-                    />
+                    {postTypeGraph}
                 </div>
             );
 
@@ -191,8 +319,92 @@ class SystemAnalytics extends React.Component {
             }
         }
 
-        const postCountsDay = formatPostsPerDayData(stats[StatTypes.POST_PER_DAY]);
-        const userCountsWithPostsDay = formatUsersWithPostsPerDayData(stats[StatTypes.USERS_WITH_POSTS_PER_DAY]);
+        const userCount = (
+            <StatisticCount
+                title={
+                    <FormattedMessage
+                        id='analytics.system.totalUsers'
+                        defaultMessage='Total Users'
+                    />
+                }
+                icon='fa-user'
+                count={stats[StatTypes.TOTAL_USERS]}
+            />
+        );
+
+        const teamCount = (
+            <StatisticCount
+                title={
+                    <FormattedMessage
+                        id='analytics.system.totalTeams'
+                        defaultMessage='Total Teams'
+                    />
+                }
+                icon='fa-users'
+                count={stats[StatTypes.TOTAL_TEAMS]}
+            />
+        );
+
+        const channelCount = (
+            <StatisticCount
+                title={
+                    <FormattedMessage
+                        id='analytics.system.totalChannels'
+                        defaultMessage='Total Channels'
+                    />
+                }
+                icon='fa-globe'
+                count={stats[StatTypes.TOTAL_PUBLIC_CHANNELS] + stats[StatTypes.TOTAL_PRIVATE_GROUPS]}
+            />
+        );
+
+        let firstRow;
+        let secondRow;
+        if (isLicensed && skippedIntensiveQueries) {
+            firstRow = (
+                <div className='row'>
+                    {userCount}
+                    {teamCount}
+                    {channelCount}
+                    {sessionCount}
+                </div>
+            );
+
+            secondRow = (
+                <div className='row'>
+                    {commandCount}
+                    {incomingCount}
+                    {outgoingCount}
+                </div>
+            );
+        } else if (isLicensed && !skippedIntensiveQueries) {
+            firstRow = (
+                <div className='row'>
+                    {userCount}
+                    {teamCount}
+                    {channelCount}
+                    {postCount}
+                </div>
+            );
+
+            secondRow = (
+                <div className='row'>
+                    {sessionCount}
+                    {commandCount}
+                    {incomingCount}
+                    {outgoingCount}
+                </div>
+            );
+        } else if (!isLicensed) {
+            firstRow = (
+                <div className='row'>
+                    {userCount}
+                    {teamCount}
+                    {channelCount}
+                    {postCount}
+                </div>
+            );
+        }
 
         return (
             <div className='wrapper--fixed team_statistics'>
@@ -203,86 +415,12 @@ class SystemAnalytics extends React.Component {
                     />
                 </h3>
                 {banner}
-                <div className='row'>
-                    <StatisticCount
-                        title={
-                            <FormattedMessage
-                                id='analytics.system.totalUsers'
-                                defaultMessage='Total Users'
-                            />
-                        }
-                        icon='fa-user'
-                        count={stats[StatTypes.TOTAL_USERS]}
-                    />
-                    <StatisticCount
-                        title={
-                            <FormattedMessage
-                                id='analytics.system.totalTeams'
-                                defaultMessage='Total Teams'
-                            />
-                        }
-                        icon='fa-users'
-                        count={stats[StatTypes.TOTAL_TEAMS]}
-                    />
-                    <StatisticCount
-                        title={
-                            <FormattedMessage
-                                id='analytics.system.totalPosts'
-                                defaultMessage='Total Posts'
-                            />
-                        }
-                        icon='fa-comment'
-                        count={stats[StatTypes.TOTAL_POSTS]}
-                    />
-                    <StatisticCount
-                        title={
-                            <FormattedMessage
-                                id='analytics.system.totalChannels'
-                                defaultMessage='Total Channels'
-                            />
-                        }
-                        icon='fa-globe'
-                        count={stats[StatTypes.TOTAL_PUBLIC_CHANNELS] + stats[StatTypes.TOTAL_PRIVATE_GROUPS]}
-                    />
-                </div>
-                {advancedCounts}
+                {firstRow}
+                {secondRow}
+                {advancedStats}
                 {advancedGraphs}
-                <div className='row'>
-                    <LineChart
-                        title={
-                            <FormattedMessage
-                                id='analytics.system.totalPosts'
-                                defaultMessage='Total Posts'
-                            />
-                        }
-                        data={postCountsDay}
-                        options={{
-                            legend: {
-                                display: false
-                            }
-                        }}
-                        width='740'
-                        height='225'
-                    />
-                </div>
-                <div className='row'>
-                    <LineChart
-                        title={
-                            <FormattedMessage
-                                id='analytics.system.activeUsers'
-                                defaultMessage='Active Users With Posts'
-                            />
-                        }
-                        data={userCountsWithPostsDay}
-                        options={{
-                            legend: {
-                                display: false
-                            }
-                        }}
-                        width='740'
-                        height='225'
-                    />
-                </div>
+                {postTotalGraph}
+                {activeUserGraph}
             </div>
         );
     }

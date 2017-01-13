@@ -4,6 +4,11 @@
 package api
 
 import (
+	"bytes"
+	"io"
+	"regexp"
+	"unicode/utf8"
+
 	l4g "github.com/alecthomas/log4go"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
@@ -15,15 +20,40 @@ import (
 //
 
 func ImportPost(post *model.Post) {
-	post.Hashtags, _ = model.ParseHashtags(post.Message)
+	// Workaround for empty messages, which may be the case if they are webhook posts.
+	firstIteration := true
+	for messageRuneCount := utf8.RuneCountInString(post.Message); messageRuneCount > 0 || firstIteration; messageRuneCount = utf8.RuneCountInString(post.Message) {
+		firstIteration = false
+		var remainder string
+		if messageRuneCount > model.POST_MESSAGE_MAX_RUNES {
+			remainder = string(([]rune(post.Message))[model.POST_MESSAGE_MAX_RUNES:])
+			post.Message = truncateRunes(post.Message, model.POST_MESSAGE_MAX_RUNES)
+		} else {
+			remainder = ""
+		}
 
-	if result := <-Srv.Store.Post().Save(post); result.Err != nil {
-		l4g.Debug(utils.T("api.import.import_post.saving.debug"), post.UserId, post.Message)
+		post.Hashtags, _ = model.ParseHashtags(post.Message)
+
+		if result := <-Srv.Store.Post().Save(post); result.Err != nil {
+			l4g.Debug(utils.T("api.import.import_post.saving.debug"), post.UserId, post.Message)
+		}
+
+		for _, fileId := range post.FileIds {
+			if result := <-Srv.Store.FileInfo().AttachToPost(fileId, post.Id); result.Err != nil {
+				l4g.Error(utils.T("api.import.import_post.attach_files.error"), post.Id, post.FileIds, result.Err)
+			}
+		}
+
+		post.Id = ""
+		post.CreateAt++
+		post.Message = remainder
 	}
 }
 
 func ImportUser(team *model.Team, user *model.User) *model.User {
 	user.MakeNonNil()
+
+	user.Roles = model.ROLE_SYSTEM_USER.Id
 
 	if result := <-Srv.Store.User().Save(user); result.Err != nil {
 		l4g.Error(utils.T("api.import.import_user.saving.error"), result.Err)
@@ -51,4 +81,77 @@ func ImportChannel(channel *model.Channel) *model.Channel {
 
 		return sc
 	}
+}
+
+func ImportFile(file io.Reader, teamId string, channelId string, userId string, fileName string) (*model.FileInfo, error) {
+	buf := bytes.NewBuffer(nil)
+	io.Copy(buf, file)
+	data := buf.Bytes()
+
+	fileInfo, err := doUploadFile(teamId, channelId, userId, fileName, data)
+	if err != nil {
+		return nil, err
+	}
+
+	img, width, height := prepareImage(data)
+	if img != nil {
+		generateThumbnailImage(*img, fileInfo.ThumbnailPath, width, height)
+		generatePreviewImage(*img, fileInfo.PreviewPath, width)
+	}
+
+	return fileInfo, nil
+}
+
+func ImportIncomingWebhookPost(post *model.Post, props model.StringInterface) {
+	linkWithTextRegex := regexp.MustCompile(`<([^<\|]+)\|([^>]+)>`)
+	post.Message = linkWithTextRegex.ReplaceAllString(post.Message, "[${2}](${1})")
+
+	post.AddProp("from_webhook", "true")
+
+	if _, ok := props["override_username"]; !ok {
+		post.AddProp("override_username", model.DEFAULT_WEBHOOK_USERNAME)
+	}
+
+	if len(props) > 0 {
+		for key, val := range props {
+			if key == "attachments" {
+				if list, success := val.([]interface{}); success {
+					// parse attachment links into Markdown format
+					for i, aInt := range list {
+						attachment := aInt.(map[string]interface{})
+						if aText, ok := attachment["text"].(string); ok {
+							aText = linkWithTextRegex.ReplaceAllString(aText, "[${2}](${1})")
+							attachment["text"] = aText
+							list[i] = attachment
+						}
+						if aText, ok := attachment["pretext"].(string); ok {
+							aText = linkWithTextRegex.ReplaceAllString(aText, "[${2}](${1})")
+							attachment["pretext"] = aText
+							list[i] = attachment
+						}
+						if fVal, ok := attachment["fields"]; ok {
+							if fields, ok := fVal.([]interface{}); ok {
+								// parse attachment field links into Markdown format
+								for j, fInt := range fields {
+									field := fInt.(map[string]interface{})
+									if fValue, ok := field["value"].(string); ok {
+										fValue = linkWithTextRegex.ReplaceAllString(fValue, "[${2}](${1})")
+										field["value"] = fValue
+										fields[j] = field
+									}
+								}
+								attachment["fields"] = fields
+								list[i] = attachment
+							}
+						}
+					}
+					post.AddProp(key, list)
+				}
+			} else if key != "from_webhook" {
+				post.AddProp(key, val)
+			}
+		}
+	}
+
+	ImportPost(post)
 }

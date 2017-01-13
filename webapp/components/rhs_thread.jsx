@@ -8,10 +8,10 @@ import RootPost from './rhs_root_post.jsx';
 import Comment from './rhs_comment.jsx';
 import FileUploadOverlay from './file_upload_overlay.jsx';
 
-import ChannelStore from 'stores/channel_store.jsx';
 import PostStore from 'stores/post_store.jsx';
 import UserStore from 'stores/user_store.jsx';
 import PreferenceStore from 'stores/preference_store.jsx';
+import WebrtcStore from 'stores/webrtc_store.jsx';
 
 import * as Utils from 'utils/utils.jsx';
 
@@ -57,6 +57,7 @@ export default class RhsThread extends React.Component {
         this.forceUpdateInfo = this.forceUpdateInfo.bind(this);
         this.onPreferenceChange = this.onPreferenceChange.bind(this);
         this.onStatusChange = this.onStatusChange.bind(this);
+        this.onBusy = this.onBusy.bind(this);
         this.handleResize = this.handleResize.bind(this);
 
         const state = this.getPosts();
@@ -66,6 +67,8 @@ export default class RhsThread extends React.Component {
         state.compactDisplay = PreferenceStore.get(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.MESSAGE_DISPLAY, Preferences.MESSAGE_DISPLAY_DEFAULT) === Preferences.MESSAGE_DISPLAY_COMPACT;
         state.flaggedPosts = PreferenceStore.getCategory(Constants.Preferences.CATEGORY_FLAGGED_POST);
         state.statuses = Object.assign({}, UserStore.getStatuses());
+        state.previewsCollapsed = PreferenceStore.get(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.COLLAPSE_DISPLAY, 'false');
+        state.isBusy = WebrtcStore.isBusy();
 
         this.state = state;
     }
@@ -76,6 +79,7 @@ export default class RhsThread extends React.Component {
         PreferenceStore.addChangeListener(this.onPreferenceChange);
         UserStore.addChangeListener(this.onUserChange);
         UserStore.addStatusesChangeListener(this.onStatusChange);
+        WebrtcStore.addBusyListener(this.onBusy);
 
         this.scrollToBottom();
         window.addEventListener('resize', this.handleResize);
@@ -89,6 +93,7 @@ export default class RhsThread extends React.Component {
         PreferenceStore.removeChangeListener(this.onPreferenceChange);
         UserStore.removeChangeListener(this.onUserChange);
         UserStore.removeStatusesChangeListener(this.onStatusChange);
+        WebrtcStore.removeBusyListener(this.onBusy);
 
         window.removeEventListener('resize', this.handleResize);
 
@@ -131,6 +136,10 @@ export default class RhsThread extends React.Component {
             return true;
         }
 
+        if (nextState.previewsCollapsed !== this.state.previewsCollapsed) {
+            return true;
+        }
+
         if (!Utils.areObjectsEqual(nextState.flaggedPosts, this.state.flaggedPosts)) {
             return true;
         }
@@ -140,6 +149,10 @@ export default class RhsThread extends React.Component {
         }
 
         if (!Utils.areObjectsEqual(nextProps.currentUser, this.props.currentUser)) {
+            return true;
+        }
+
+        if (nextState.isBusy !== this.state.isBusy) {
             return true;
         }
 
@@ -163,10 +176,16 @@ export default class RhsThread extends React.Component {
         });
     }
 
-    onPreferenceChange() {
+    onPreferenceChange(category) {
+        let previewSuffix = '';
+        if (category === Preferences.CATEGORY_DISPLAY_SETTINGS) {
+            previewSuffix = '_' + Utils.generateId();
+        }
+
         this.setState({
             compactDisplay: PreferenceStore.get(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.MESSAGE_DISPLAY, Preferences.MESSAGE_DISPLAY_DEFAULT) === Preferences.MESSAGE_DISPLAY_COMPACT,
-            flaggedPosts: PreferenceStore.getCategory(Constants.Preferences.CATEGORY_FLAGGED_POST)
+            flaggedPosts: PreferenceStore.getCategory(Constants.Preferences.CATEGORY_FLAGGED_POST),
+            previewsCollapsed: PreferenceStore.get(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.COLLAPSE_DISPLAY, 'false') + previewSuffix
         });
         this.forceUpdateInfo();
     }
@@ -179,6 +198,10 @@ export default class RhsThread extends React.Component {
 
     onStatusChange() {
         this.setState({statuses: Object.assign({}, UserStore.getStatuses())});
+    }
+
+    onBusy(isBusy) {
+        this.setState({isBusy});
     }
 
     getPosts() {
@@ -238,16 +261,11 @@ export default class RhsThread extends React.Component {
     render() {
         const postsArray = this.state.postsArray;
         const selected = this.state.selected;
-        const channel = ChannelStore.get(this.state.selected.channel_id);
-
-        let profiles = this.state.profiles || {};
-        if (channel && channel.type === Constants.DM_CHANNEL) {
-            profiles = Object.assign({}, profiles, UserStore.getDirectProfiles());
-        }
+        const profiles = this.state.profiles || {};
 
         if (postsArray == null || selected == null) {
             return (
-                <div></div>
+                <div/>
             );
         }
 
@@ -282,6 +300,7 @@ export default class RhsThread extends React.Component {
                     <RhsHeaderPost
                         fromFlaggedPosts={this.props.fromFlaggedPosts}
                         fromSearch={this.props.fromSearch}
+                        isWebrtc={this.props.isWebrtc}
                         isMentionSearch={this.props.isMentionSearch}
                         toggleSize={this.props.toggleSize}
                         shrink={this.props.shrink}
@@ -305,6 +324,8 @@ export default class RhsThread extends React.Component {
                                 useMilitaryTime={this.props.useMilitaryTime}
                                 isFlagged={isRootFlagged}
                                 status={rootStatus}
+                                previewCollapsed={this.state.previewsCollapsed}
+                                isBusy={this.state.isBusy}
                             />
                             <div className='post-right-comments-container'>
                                 {postsArray.map((comPost) => {
@@ -325,10 +346,12 @@ export default class RhsThread extends React.Component {
                                         status = this.state.statuses[p.id] || 'offline';
                                     }
 
+                                    const keyPrefix = comPost.id ? comPost.id : comPost.pending_post_id;
+
                                     return (
                                         <Comment
                                             ref={comPost.id}
-                                            key={comPost.id + 'commentKey'}
+                                            key={keyPrefix + 'commentKey'}
                                             post={comPost}
                                             user={p}
                                             currentUser={this.props.currentUser}
@@ -336,6 +359,7 @@ export default class RhsThread extends React.Component {
                                             useMilitaryTime={this.props.useMilitaryTime}
                                             isFlagged={isFlagged}
                                             status={status}
+                                            isBusy={this.state.isBusy}
                                         />
                                     );
                                 })}
@@ -344,6 +368,7 @@ export default class RhsThread extends React.Component {
                                 <CreateComment
                                     channelId={selected.channel_id}
                                     rootId={selected.id}
+                                    latestPostId={postsArray.length > 0 ? postsArray[postsArray.length - 1].id : selected.id}
                                 />
                             </div>
                         </div>
@@ -362,9 +387,10 @@ RhsThread.defaultProps = {
 RhsThread.propTypes = {
     fromSearch: React.PropTypes.string,
     fromFlaggedPosts: React.PropTypes.bool,
+    isWebrtc: React.PropTypes.bool,
     isMentionSearch: React.PropTypes.bool,
     currentUser: React.PropTypes.object.isRequired,
     useMilitaryTime: React.PropTypes.bool.isRequired,
-    toggleSize: React.PropTypes.function,
-    shrink: React.PropTypes.function
+    toggleSize: React.PropTypes.func,
+    shrink: React.PropTypes.func
 };

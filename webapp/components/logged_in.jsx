@@ -1,21 +1,21 @@
 // Copyright (c) 2016 Mattermost, Inc. All Rights Reserved.
 // See License.txt for license information.
 
-import $ from 'jquery';
 import LoadingScreen from 'components/loading_screen.jsx';
-import * as AsyncClient from 'utils/async_client.jsx';
+
 import UserStore from 'stores/user_store.jsx';
-import BrowserStore from 'stores/browser_store.jsx';
 import PreferenceStore from 'stores/preference_store.jsx';
-import * as Utils from 'utils/utils.jsx';
+
 import * as GlobalActions from 'actions/global_actions.jsx';
 import * as WebSocketActions from 'actions/websocket_actions.jsx';
-import Constants from 'utils/constants.jsx';
+import {loadEmoji} from 'actions/emoji_actions.jsx';
 
-import {browserHistory} from 'react-router/es6';
+import * as Utils from 'utils/utils.jsx';
+import Constants from 'utils/constants.jsx';
 
 const BACKSPACE_CHAR = 8;
 
+import $ from 'jquery';
 import React from 'react';
 
 // import the EmojiStore so that it'll register to receive the results of the listEmojis call further down
@@ -27,30 +27,6 @@ export default class LoggedIn extends React.Component {
 
         this.onUserChanged = this.onUserChanged.bind(this);
         this.setupUser = this.setupUser.bind(this);
-
-        // Force logout of all tabs if one tab is logged out
-        $(window).bind('storage', (e) => {
-            // when one tab on a browser logs out, it sets __logout__ in localStorage to trigger other tabs to log out
-            if (e.originalEvent.key === '__logout__' && e.originalEvent.storageArea === localStorage && e.originalEvent.newValue) {
-                // make sure it isn't this tab that is sending the logout signal (only necessary for IE11)
-                if (BrowserStore.isSignallingLogout(e.originalEvent.newValue)) {
-                    return;
-                }
-
-                console.log('detected logout from a different tab'); //eslint-disable-line no-console
-                browserHistory.push('/');
-            }
-
-            if (e.originalEvent.key === '__login__' && e.originalEvent.storageArea === localStorage && e.originalEvent.newValue) {
-                // make sure it isn't this tab that is sending the logout signal (only necessary for IE11)
-                if (BrowserStore.isSignallingLogin(e.originalEvent.newValue)) {
-                    return;
-                }
-
-                console.log('detected login from a different tab'); //eslint-disable-line no-console
-                location.reload();
-            }
-        });
 
         // Because current CSS requires the root tag to have specific stuff
         $('#root').attr('class', 'channel-view');
@@ -102,11 +78,15 @@ export default class LoggedIn extends React.Component {
     }
 
     componentDidMount() {
-        // Initalize websocket
+        // Initialize websocket
         WebSocketActions.initialize();
 
         // Listen for user
         UserStore.addChangeListener(this.onUserChanged);
+
+        // Listen for focussed tab/window state
+        window.addEventListener('focus', this.onFocusListener);
+        window.addEventListener('blur', this.onBlurListener);
 
         // ???
         $('body').on('mouseenter mouseleave', '.post', function mouseOver(ev) {
@@ -148,7 +128,7 @@ export default class LoggedIn extends React.Component {
 
         // Get custom emoji from the server
         if (window.mm_config.EnableCustomEmoji === 'true') {
-            AsyncClient.listEmoji();
+            loadEmoji(false);
         }
     }
 
@@ -165,6 +145,10 @@ export default class LoggedIn extends React.Component {
         $('.modal').off('show.bs.modal');
 
         $(window).off('keydown.preventBackspace');
+
+        // Listen for focussed tab/window state
+        window.removeEventListener('focus', this.onFocusListener);
+        window.removeEventListener('blur', this.onBlurListener);
     }
 
     render() {
@@ -175,6 +159,14 @@ export default class LoggedIn extends React.Component {
         return React.cloneElement(this.props.children, {
             user: this.state.user
         });
+    }
+
+    onFocusListener() {
+        GlobalActions.emitBrowserFocus(true);
+    }
+
+    onBlurListener() {
+        GlobalActions.emitBrowserFocus(false);
     }
 }
 

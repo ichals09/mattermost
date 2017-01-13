@@ -5,11 +5,11 @@ import $ from 'jquery';
 import SettingItemMin from './setting_item_min.jsx';
 import SettingItemMax from './setting_item_max.jsx';
 
-import Client from 'client/web_client.jsx';
 import * as Utils from 'utils/utils.jsx';
-import TeamStore from 'stores/team_store.jsx';
+import Constants from 'utils/constants.jsx';
 
 import {intlShape, injectIntl, defineMessages, FormattedMessage, FormattedHTMLMessage} from 'react-intl';
+import {updateTeam} from 'actions/team_actions.jsx';
 
 const holders = defineMessages({
     dirDisabled: {
@@ -55,6 +55,10 @@ const holders = defineMessages({
     teamNameInfo: {
         id: 'general_tab.teamNameInfo',
         defaultMessage: 'Set the name of the team as it appears on your sign-in screen and at the top of the left-hand sidebar.'
+    },
+    teamDescriptionInfo: {
+        id: 'general_tab.teamDescriptionInfo',
+        defaultMessage: 'Team description provides additional information to help users select the right team. Maximum of 50 characters.'
     }
 });
 
@@ -68,9 +72,12 @@ class GeneralTab extends React.Component {
         this.handleNameSubmit = this.handleNameSubmit.bind(this);
         this.handleInviteIdSubmit = this.handleInviteIdSubmit.bind(this);
         this.handleOpenInviteSubmit = this.handleOpenInviteSubmit.bind(this);
+        this.handleDescriptionSubmit = this.handleDescriptionSubmit.bind(this);
         this.handleClose = this.handleClose.bind(this);
         this.onUpdateNameSection = this.onUpdateNameSection.bind(this);
         this.updateName = this.updateName.bind(this);
+        this.updateDescription = this.updateDescription.bind(this);
+        this.onUpdateDescriptionSection = this.onUpdateDescriptionSection.bind(this);
         this.onUpdateInviteIdSection = this.onUpdateInviteIdSection.bind(this);
         this.updateInviteId = this.updateInviteId.bind(this);
         this.onUpdateOpenInviteSection = this.onUpdateOpenInviteSection.bind(this);
@@ -95,6 +102,7 @@ class GeneralTab extends React.Component {
             name: team.display_name,
             invite_id: team.invite_id,
             allow_open_invite: team.allow_open_invite,
+            description: team.description,
             serverError: '',
             clientError: ''
         };
@@ -103,6 +111,7 @@ class GeneralTab extends React.Component {
     componentWillReceiveProps(nextProps) {
         this.setState({
             name: nextProps.team.display_name,
+            description: nextProps.team.description,
             invite_id: nextProps.team.invite_id,
             allow_open_invite: nextProps.team.allow_open_invite
         });
@@ -130,10 +139,8 @@ class GeneralTab extends React.Component {
 
         var data = this.props.team;
         data.allow_open_invite = this.state.allow_open_invite;
-        Client.updateTeam(data,
-            (team) => {
-                TeamStore.saveTeam(team);
-                TeamStore.emitChange();
+        updateTeam(data,
+            () => {
                 this.updateSection('');
             },
             (err) => {
@@ -169,10 +176,8 @@ class GeneralTab extends React.Component {
 
         var data = this.props.team;
         data.display_name = this.state.name;
-        Client.updateTeam(data,
-            (team) => {
-                TeamStore.saveTeam(team);
-                TeamStore.emitChange();
+        updateTeam(data,
+            () => {
                 this.updateSection('');
             },
             (err) => {
@@ -204,10 +209,8 @@ class GeneralTab extends React.Component {
 
         var data = this.props.team;
         data.invite_id = this.state.invite_id;
-        Client.updateTeam(data,
-            (team) => {
-                TeamStore.saveTeam(team);
-                TeamStore.emitChange();
+        updateTeam(data,
+            () => {
                 this.updateSection('');
             },
             (err) => {
@@ -219,6 +222,40 @@ class GeneralTab extends React.Component {
 
     handleClose() {
         this.updateSection('');
+    }
+
+    handleDescriptionSubmit(e) {
+        e.preventDefault();
+
+        var state = {serverError: '', clientError: ''};
+        let valid = true;
+
+        const {formatMessage} = this.props.intl;
+        const description = this.state.description.trim();
+        if (description === this.props.team.description) {
+            state.clientError = formatMessage(holders.chooseName);
+            valid = false;
+        } else {
+            state.clientError = '';
+        }
+
+        this.setState(state);
+
+        if (!valid) {
+            return;
+        }
+
+        var data = this.props.team;
+        data.description = this.state.description;
+        updateTeam(data,
+            () => {
+                this.updateSection('');
+            },
+            (err) => {
+                state.serverError = err.message;
+                this.setState(state);
+            }
+        );
     }
 
     componentDidMount() {
@@ -235,6 +272,15 @@ class GeneralTab extends React.Component {
             this.updateSection('');
         } else {
             this.updateSection('name');
+        }
+    }
+
+    onUpdateDescriptionSection(e) {
+        e.preventDefault();
+        if (this.props.activeSection === 'description') {
+            this.updateSection('');
+        } else {
+            this.updateSection('description');
         }
     }
 
@@ -258,6 +304,10 @@ class GeneralTab extends React.Component {
 
     updateName(e) {
         this.setState({name: e.target.value});
+    }
+
+    updateDescription(e) {
+        this.setState({description: e.target.value});
     }
 
     updateInviteId(e) {
@@ -354,8 +404,7 @@ class GeneralTab extends React.Component {
             inputs.push(
                 <div key='teamInviteSetting'>
                     <div className='row'>
-                        <label className='col-sm-5 control-label visible-xs-block'>
-                        </label>
+                        <label className='col-sm-5 control-label visible-xs-block'/>
                         <div className='col-sm-12'>
                             <input
                                 className='form-control'
@@ -431,7 +480,7 @@ class GeneralTab extends React.Component {
                         <input
                             className='form-control'
                             type='text'
-                            maxLength='22'
+                            maxLength={Constants.MAX_TEAMNAME_LENGTH.toString()}
                             onChange={this.updateName}
                             value={this.state.name}
                         />
@@ -464,6 +513,74 @@ class GeneralTab extends React.Component {
             );
         }
 
+        let descriptionSection;
+
+        if (this.props.activeSection === 'description') {
+            const inputs = [];
+
+            let teamDescriptionLabel = (
+                <FormattedMessage
+                    id='general_tab.teamDescription'
+                    defaultMessage='Team Description'
+                />
+            );
+            if (Utils.isMobile()) {
+                teamDescriptionLabel = '';
+            }
+
+            inputs.push(
+                <div
+                    key='teamDescriptionSetting'
+                    className='form-group'
+                >
+                    <label className='col-sm-5 control-label'>{teamDescriptionLabel}</label>
+                    <div className='col-sm-7'>
+                        <input
+                            className='form-control'
+                            type='text'
+                            maxLength={Constants.MAX_TEAMDESCRIPTION_LENGTH.toString()}
+                            onChange={this.updateDescription}
+                            value={this.state.description}
+                        />
+                    </div>
+                </div>
+            );
+
+            const descriptionExtraInfo = <span>{formatMessage(holders.teamDescriptionInfo)}</span>;
+
+            descriptionSection = (
+                <SettingItemMax
+                    title={formatMessage({id: 'general_tab.teamDescription'})}
+                    inputs={inputs}
+                    submit={this.handleDescriptionSubmit}
+                    server_error={serverError}
+                    client_error={clientError}
+                    updateSection={this.onUpdateDescriptionSection}
+                    extraInfo={descriptionExtraInfo}
+                />
+            );
+        } else {
+            let describemsg = '';
+            if (this.state.description) {
+                describemsg = this.state.description;
+            } else {
+                describemsg = (
+                    <FormattedMessage
+                        id='general_tab.emptyDescription'
+                        defaultMessage="Click 'Edit' to add a team description."
+                    />
+                );
+            }
+
+            descriptionSection = (
+                <SettingItemMin
+                    title={formatMessage({id: 'general_tab.teamDescription'})}
+                    describe={describemsg}
+                    updateSection={this.onUpdateDescriptionSection}
+                />
+            );
+        }
+
         return (
             <div>
                 <div className='modal-header'>
@@ -482,7 +599,7 @@ class GeneralTab extends React.Component {
                         ref='title'
                     >
                         <div className='modal-back'>
-                            <i className='fa fa-angle-left'></i>
+                            <i className='fa fa-angle-left'/>
                         </div>
                         <FormattedMessage
                             id='general_tab.title'
@@ -502,6 +619,8 @@ class GeneralTab extends React.Component {
                     </h3>
                     <div className='divider-dark first'/>
                     {nameSection}
+                    <div className='divider-light'/>
+                    {descriptionSection}
                     <div className='divider-light'/>
                     {openInviteSection}
                     <div className='divider-light'/>

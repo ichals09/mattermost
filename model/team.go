@@ -24,6 +24,7 @@ type Team struct {
 	DeleteAt        int64  `json:"delete_at"`
 	DisplayName     string `json:"display_name"`
 	Name            string `json:"name"`
+	Description     string `json:"description"`
 	Email           string `json:"email"`
 	Type            string `json:"type"`
 	CompanyName     string `json:"company_name"`
@@ -100,7 +101,7 @@ func (o *Team) Etag() string {
 	return Etag(o.Id, o.UpdateAt)
 }
 
-func (o *Team) IsValid(restrictTeamNames bool) *AppError {
+func (o *Team) IsValid() *AppError {
 
 	if len(o.Id) != 26 {
 		return NewLocAppError("Team.IsValid", "model.team.is_valid.id.app_error", nil, "")
@@ -130,7 +131,11 @@ func (o *Team) IsValid(restrictTeamNames bool) *AppError {
 		return NewLocAppError("Team.IsValid", "model.team.is_valid.url.app_error", nil, "id="+o.Id)
 	}
 
-	if restrictTeamNames && IsReservedTeamName(o.Name) {
+	if len(o.Description) > 255 {
+		return NewLocAppError("Team.IsValid", "model.team.is_valid.description.app_error", nil, "id="+o.Id)
+	}
+
+	if IsReservedTeamName(o.Name) {
 		return NewLocAppError("Team.IsValid", "model.team.is_valid.reserved.app_error", nil, "id="+o.Id)
 	}
 
@@ -188,7 +193,7 @@ func IsValidTeamName(s string) bool {
 		return false
 	}
 
-	if len(s) <= 3 {
+	if len(s) <= 1 {
 		return false
 	}
 

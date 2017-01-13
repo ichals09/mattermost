@@ -16,6 +16,12 @@ type TeamMember struct {
 	DeleteAt int64  `json:"delete_at"`
 }
 
+type TeamUnread struct {
+	TeamId       string `json:"team_id"`
+	MsgCount     int64  `json:"msg_count"`
+	MentionCount int64  `json:"mention_count"`
+}
+
 func (o *TeamMember) ToJson() string {
 	b, err := json.Marshal(o)
 	if err != nil {
@@ -55,21 +61,23 @@ func TeamMembersFromJson(data io.Reader) []*TeamMember {
 	}
 }
 
-func IsInTeamRole(teamRoles string, inRole string) bool {
-	roles := strings.Split(teamRoles, " ")
-
-	for _, r := range roles {
-		if r == inRole {
-			return true
-		}
-
+func TeamsUnreadToJson(o []*TeamUnread) string {
+	if b, err := json.Marshal(o); err != nil {
+		return "[]"
+	} else {
+		return string(b)
 	}
-
-	return false
 }
 
-func (o *TeamMember) IsTeamAdmin() bool {
-	return true
+func TeamsUnreadFromJson(data io.Reader) []*TeamUnread {
+	decoder := json.NewDecoder(data)
+	var o []*TeamUnread
+	err := decoder.Decode(&o)
+	if err == nil {
+		return o
+	} else {
+		return nil
+	}
 }
 
 func (o *TeamMember) IsValid() *AppError {
@@ -81,12 +89,6 @@ func (o *TeamMember) IsValid() *AppError {
 	if len(o.UserId) != 26 {
 		return NewLocAppError("TeamMember.IsValid", "model.team_member.is_valid.user_id.app_error", nil, "")
 	}
-
-	/*for _, role := range strings.Split(o.Roles, " ") {
-		if !(role == "" || role == ROLE_TEAM_ADMIN.Id) {
-			return NewLocAppError("TeamMember.IsValid", "model.team_member.is_valid.role.app_error", nil, "role="+role)
-		}
-	}*/
 
 	return nil
 }

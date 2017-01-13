@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"runtime/debug"
+
 	l4g "github.com/alecthomas/log4go"
 	"github.com/gorilla/mux"
 	"github.com/mattermost/platform/einterfaces"
@@ -30,6 +32,7 @@ func InitAdmin() {
 	BaseRoutes.Admin.Handle("/config", ApiAdminSystemRequired(getConfig)).Methods("GET")
 	BaseRoutes.Admin.Handle("/save_config", ApiAdminSystemRequired(saveConfig)).Methods("POST")
 	BaseRoutes.Admin.Handle("/reload_config", ApiAdminSystemRequired(reloadConfig)).Methods("GET")
+	BaseRoutes.Admin.Handle("/invalidate_all_caches", ApiAdminSystemRequired(invalidateAllCaches)).Methods("GET")
 	BaseRoutes.Admin.Handle("/test_email", ApiAdminSystemRequired(testEmail)).Methods("POST")
 	BaseRoutes.Admin.Handle("/recycle_db_conn", ApiAdminSystemRequired(recycleDatabaseConnection)).Methods("GET")
 	BaseRoutes.Admin.Handle("/analytics/{id:[A-Za-z0-9]+}/{name:[A-Za-z0-9_]+}", ApiAdminSystemRequired(getAnalytics)).Methods("GET")
@@ -48,7 +51,7 @@ func InitAdmin() {
 	BaseRoutes.Admin.Handle("/remove_certificate", ApiAdminSystemRequired(removeCertificate)).Methods("POST")
 	BaseRoutes.Admin.Handle("/saml_cert_status", ApiAdminSystemRequired(samlCertificateStatus)).Methods("GET")
 	BaseRoutes.Admin.Handle("/cluster_status", ApiAdminSystemRequired(getClusterStatus)).Methods("GET")
-	BaseRoutes.Admin.Handle("/recently_active_users/{team_id:[A-Za-z0-9]+}", ApiUserRequiredActivity(getRecentlyActiveUsers, false)).Methods("GET")
+	BaseRoutes.Admin.Handle("/recently_active_users/{team_id:[A-Za-z0-9]+}", ApiUserRequired(getRecentlyActiveUsers)).Methods("GET")
 }
 
 func getLogs(c *Context, w http.ResponseWriter, r *http.Request) {
@@ -110,7 +113,7 @@ func getAllAudits(c *Context, w http.ResponseWriter, r *http.Request) {
 		audits := result.Data.(model.Audits)
 		etag := audits.Etag()
 
-		if HandleEtag(etag, w, r) {
+		if HandleEtag(etag, "Get All Audits", w, r) {
 			return
 		}
 
@@ -134,10 +137,29 @@ func getConfig(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func reloadConfig(c *Context, w http.ResponseWriter, r *http.Request) {
+	debug.FreeOSMemory()
 	utils.LoadConfig(utils.CfgFileName)
 
 	// start/restart email batching job if necessary
 	InitEmailBatching()
+
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	ReturnStatusOK(w)
+}
+
+func invalidateAllCaches(c *Context, w http.ResponseWriter, r *http.Request) {
+	debug.FreeOSMemory()
+
+	InvalidateAllCaches()
+
+	if einterfaces.GetClusterInterface() != nil {
+		err := einterfaces.GetClusterInterface().InvalidateAllCaches()
+		if err != nil {
+			c.Err = err
+			return
+		}
+
+	}
 
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	ReturnStatusOK(w)
@@ -173,6 +195,14 @@ func saveConfig(c *Context, w http.ResponseWriter, r *http.Request) {
 	//oldCfg := utils.Cfg
 	utils.SaveConfig(utils.CfgFileName, cfg)
 	utils.LoadConfig(utils.CfgFileName)
+
+	if einterfaces.GetMetricsInterface() != nil {
+		if *utils.Cfg.MetricsSettings.Enable {
+			einterfaces.GetMetricsInterface().StartServer()
+		} else {
+			einterfaces.GetMetricsInterface().StopServer()
+		}
+	}
 
 	// Future feature is to sync the configuration files
 	// if einterfaces.GetClusterInterface() != nil {
@@ -337,19 +367,43 @@ func getAnalytics(c *Context, w http.ResponseWriter, r *http.Request) {
 	teamId := params["id"]
 	name := params["name"]
 
+	skipIntensiveQueries := false
+	var systemUserCount int64
+	if r := <-Srv.Store.User().AnalyticsUniqueUserCount(""); r.Err != nil {
+		c.Err = r.Err
+		return
+	} else {
+		systemUserCount = r.Data.(int64)
+		if systemUserCount > int64(*utils.Cfg.AnalyticsSettings.MaxUsersForStatistics) {
+			l4g.Debug("More than %v users on the system, intensive queries skipped", *utils.Cfg.AnalyticsSettings.MaxUsersForStatistics)
+			skipIntensiveQueries = true
+		}
+	}
+
 	if name == "standard" {
-		var rows model.AnalyticsRows = make([]*model.AnalyticsRow, 5)
+		var rows model.AnalyticsRows = make([]*model.AnalyticsRow, 8)
 		rows[0] = &model.AnalyticsRow{"channel_open_count", 0}
 		rows[1] = &model.AnalyticsRow{"channel_private_count", 0}
 		rows[2] = &model.AnalyticsRow{"post_count", 0}
 		rows[3] = &model.AnalyticsRow{"unique_user_count", 0}
 		rows[4] = &model.AnalyticsRow{"team_count", 0}
+		rows[5] = &model.AnalyticsRow{"total_websocket_connections", 0}
+		rows[6] = &model.AnalyticsRow{"total_master_db_connections", 0}
+		rows[7] = &model.AnalyticsRow{"total_read_db_connections", 0}
 
 		openChan := Srv.Store.Channel().AnalyticsTypeCount(teamId, model.CHANNEL_OPEN)
 		privateChan := Srv.Store.Channel().AnalyticsTypeCount(teamId, model.CHANNEL_PRIVATE)
-		postChan := Srv.Store.Post().AnalyticsPostCount(teamId, false, false)
-		userChan := Srv.Store.User().AnalyticsUniqueUserCount(teamId)
 		teamChan := Srv.Store.Team().AnalyticsTeamCount()
+
+		var userChan store.StoreChannel
+		if teamId != "" {
+			userChan = Srv.Store.User().AnalyticsUniqueUserCount(teamId)
+		}
+
+		var postChan store.StoreChannel
+		if !skipIntensiveQueries {
+			postChan = Srv.Store.Post().AnalyticsPostCount(teamId, false, false)
+		}
 
 		if r := <-openChan; r.Err != nil {
 			c.Err = r.Err
@@ -365,18 +419,26 @@ func getAnalytics(c *Context, w http.ResponseWriter, r *http.Request) {
 			rows[1].Value = float64(r.Data.(int64))
 		}
 
-		if r := <-postChan; r.Err != nil {
-			c.Err = r.Err
-			return
+		if postChan == nil {
+			rows[2].Value = -1
 		} else {
-			rows[2].Value = float64(r.Data.(int64))
+			if r := <-postChan; r.Err != nil {
+				c.Err = r.Err
+				return
+			} else {
+				rows[2].Value = float64(r.Data.(int64))
+			}
 		}
 
-		if r := <-userChan; r.Err != nil {
-			c.Err = r.Err
-			return
+		if userChan == nil {
+			rows[3].Value = float64(systemUserCount)
 		} else {
-			rows[3].Value = float64(r.Data.(int64))
+			if r := <-userChan; r.Err != nil {
+				c.Err = r.Err
+				return
+			} else {
+				rows[3].Value = float64(r.Data.(int64))
+			}
 		}
 
 		if r := <-teamChan; r.Err != nil {
@@ -386,8 +448,42 @@ func getAnalytics(c *Context, w http.ResponseWriter, r *http.Request) {
 			rows[4].Value = float64(r.Data.(int64))
 		}
 
+		// If in HA mode then aggregrate all the stats
+		if einterfaces.GetClusterInterface() != nil && *utils.Cfg.ClusterSettings.Enable {
+			stats, err := einterfaces.GetClusterInterface().GetClusterStats()
+			if err != nil {
+				c.Err = err
+				return
+			}
+
+			totalSockets := TotalWebsocketConnections()
+			totalMasterDb := Srv.Store.TotalMasterDbConnections()
+			totalReadDb := Srv.Store.TotalReadDbConnections()
+
+			for _, stat := range stats {
+				totalSockets = totalSockets + stat.TotalWebsocketConnections
+				totalMasterDb = totalMasterDb + stat.TotalMasterDbConnections
+				totalReadDb = totalReadDb + stat.TotalReadDbConnections
+			}
+
+			rows[5].Value = float64(totalSockets)
+			rows[6].Value = float64(totalMasterDb)
+			rows[7].Value = float64(totalReadDb)
+
+		} else {
+			rows[5].Value = float64(TotalWebsocketConnections())
+			rows[6].Value = float64(Srv.Store.TotalMasterDbConnections())
+			rows[7].Value = float64(Srv.Store.TotalReadDbConnections())
+		}
+
 		w.Write([]byte(rows.ToJson()))
 	} else if name == "post_counts_day" {
+		if skipIntensiveQueries {
+			rows := model.AnalyticsRows{&model.AnalyticsRow{"", -1}}
+			w.Write([]byte(rows.ToJson()))
+			return
+		}
+
 		if r := <-Srv.Store.Post().AnalyticsPostCountsByDay(teamId); r.Err != nil {
 			c.Err = r.Err
 			return
@@ -395,6 +491,12 @@ func getAnalytics(c *Context, w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(r.Data.(model.AnalyticsRows).ToJson()))
 		}
 	} else if name == "user_counts_with_posts_day" {
+		if skipIntensiveQueries {
+			rows := model.AnalyticsRows{&model.AnalyticsRow{"", -1}}
+			w.Write([]byte(rows.ToJson()))
+			return
+		}
+
 		if r := <-Srv.Store.Post().AnalyticsUserCountsWithPostsByDay(teamId); r.Err != nil {
 			c.Err = r.Err
 			return
@@ -410,25 +512,38 @@ func getAnalytics(c *Context, w http.ResponseWriter, r *http.Request) {
 		rows[4] = &model.AnalyticsRow{"command_count", 0}
 		rows[5] = &model.AnalyticsRow{"session_count", 0}
 
-		fileChan := Srv.Store.Post().AnalyticsPostCount(teamId, true, false)
-		hashtagChan := Srv.Store.Post().AnalyticsPostCount(teamId, false, true)
 		iHookChan := Srv.Store.Webhook().AnalyticsIncomingCount(teamId)
 		oHookChan := Srv.Store.Webhook().AnalyticsOutgoingCount(teamId)
 		commandChan := Srv.Store.Command().AnalyticsCommandCount(teamId)
 		sessionChan := Srv.Store.Session().AnalyticsSessionCount()
 
-		if r := <-fileChan; r.Err != nil {
-			c.Err = r.Err
-			return
-		} else {
-			rows[0].Value = float64(r.Data.(int64))
+		var fileChan store.StoreChannel
+		var hashtagChan store.StoreChannel
+		if !skipIntensiveQueries {
+			fileChan = Srv.Store.Post().AnalyticsPostCount(teamId, true, false)
+			hashtagChan = Srv.Store.Post().AnalyticsPostCount(teamId, false, true)
 		}
 
-		if r := <-hashtagChan; r.Err != nil {
-			c.Err = r.Err
-			return
+		if fileChan == nil {
+			rows[0].Value = -1
 		} else {
-			rows[1].Value = float64(r.Data.(int64))
+			if r := <-fileChan; r.Err != nil {
+				c.Err = r.Err
+				return
+			} else {
+				rows[0].Value = float64(r.Data.(int64))
+			}
+		}
+
+		if hashtagChan == nil {
+			rows[1].Value = -1
+		} else {
+			if r := <-hashtagChan; r.Err != nil {
+				c.Err = r.Err
+				return
+			} else {
+				rows[1].Value = float64(r.Data.(int64))
+			}
 		}
 
 		if r := <-iHookChan; r.Err != nil {
@@ -706,32 +821,14 @@ func samlCertificateStatus(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getRecentlyActiveUsers(c *Context, w http.ResponseWriter, r *http.Request) {
-	statusMap := map[string]interface{}{}
-
-	if result := <-Srv.Store.Status().GetAllFromTeam(c.TeamId); result.Err != nil {
-		c.Err = result.Err
-		return
-	} else {
-		statuses := result.Data.([]*model.Status)
-		for _, s := range statuses {
-			statusMap[s.UserId] = s.LastActivityAt
-		}
-	}
-
-	if result := <-Srv.Store.User().GetProfiles(c.TeamId); result.Err != nil {
+	if result := <-Srv.Store.User().GetRecentlyActiveUsersForTeam(c.TeamId); result.Err != nil {
 		c.Err = result.Err
 		return
 	} else {
 		profiles := result.Data.(map[string]*model.User)
 
-		for k, p := range profiles {
-			p = sanitizeProfile(c, p)
-
-			if lastActivityAt, ok := statusMap[p.Id].(int64); ok {
-				p.LastActivityAt = lastActivityAt
-			}
-
-			profiles[k] = p
+		for _, p := range profiles {
+			sanitizeProfile(c, p)
 		}
 
 		w.Write([]byte(model.UserMapToJson(profiles)))

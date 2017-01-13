@@ -24,6 +24,8 @@ func Setup() {
 		utils.LoadConfig("config.json")
 		utils.InitTranslations(utils.Cfg.LocalizationSettings)
 		api.NewServer()
+		api.InitStores()
+		api.InitRouter()
 		api.StartServer()
 		api.InitApi()
 		InitWeb()
@@ -161,7 +163,7 @@ func TestGetAccessToken(t *testing.T) {
 		}
 	}
 
-	if result, err := ApiClient.DoApiGet("/users/profiles/"+teamId+"?access_token="+token, "", ""); err != nil {
+	if result, err := ApiClient.DoApiGet("/teams/"+teamId+"/users/0/100?access_token="+token, "", ""); err != nil {
 		t.Fatal(err)
 	} else {
 		userMap := model.UserMapFromJson(result.Body)
@@ -170,16 +172,16 @@ func TestGetAccessToken(t *testing.T) {
 		}
 	}
 
-	if _, err := ApiClient.DoApiGet("/users/profiles/"+teamId, "", ""); err == nil {
+	if _, err := ApiClient.DoApiGet("/teams/"+teamId+"/users/0/100", "", ""); err == nil {
 		t.Fatal("should have failed - no access token provided")
 	}
 
-	if _, err := ApiClient.DoApiGet("/users/profiles/"+teamId+"?access_token=junk", "", ""); err == nil {
+	if _, err := ApiClient.DoApiGet("/teams/"+teamId+"/users/0/100?access_token=junk", "", ""); err == nil {
 		t.Fatal("should have failed - bad access token provided")
 	}
 
 	ApiClient.SetOAuthToken(token)
-	if result, err := ApiClient.DoApiGet("/users/profiles/"+teamId, "", ""); err != nil {
+	if result, err := ApiClient.DoApiGet("/teams/"+teamId+"/users/0/100", "", ""); err != nil {
 		t.Fatal(err)
 	} else {
 		userMap := model.UserMapFromJson(result.Body)
@@ -206,10 +208,7 @@ func TestIncomingWebhook(t *testing.T) {
 	store.Must(api.Srv.Store.User().VerifyEmail(user.Id))
 	api.JoinUserToTeam(team, user)
 
-	c := &api.Context{}
-	c.RequestId = model.NewId()
-	c.IpAddress = "cmd_line"
-	api.UpdateUserRoles(c, user, model.ROLE_SYSTEM_ADMIN.Id)
+	api.UpdateUserRoles(user, model.ROLE_SYSTEM_ADMIN.Id)
 	ApiClient.Login(user.Email, "passwd1")
 	ApiClient.SetTeamId(team.Id)
 

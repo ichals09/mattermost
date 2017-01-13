@@ -120,6 +120,45 @@ func TestListTeamCommands(t *testing.T) {
 	}
 }
 
+func TestUpdateCommand(t *testing.T) {
+	th := Setup().InitSystemAdmin()
+	Client := th.SystemAdminClient
+	user := th.SystemAdminUser
+	team := th.SystemAdminTeam
+
+	enableCommands := *utils.Cfg.ServiceSettings.EnableCommands
+	defer func() {
+		utils.Cfg.ServiceSettings.EnableCommands = &enableCommands
+	}()
+	*utils.Cfg.ServiceSettings.EnableCommands = true
+
+	cmd1 := &model.Command{
+		CreatorId: user.Id,
+		TeamId:    team.Id,
+		URL:       "http://nowhere.com",
+		Method:    model.COMMAND_METHOD_POST,
+		Trigger:   "trigger"}
+
+	cmd1 = Client.Must(Client.CreateCommand(cmd1)).Data.(*model.Command)
+
+	cmd2 := &model.Command{
+		CreatorId: user.Id,
+		TeamId:    team.Id,
+		URL:       "http://nowhere.com",
+		Method:    model.COMMAND_METHOD_POST,
+		Trigger:   "trigger2",
+		Token:     cmd1.Token,
+		Id:        cmd1.Id}
+
+	if result, err := Client.UpdateCommand(cmd2); err != nil {
+		t.Fatal(err)
+	} else {
+		if result.Data.(*model.Command).Trigger == cmd1.Trigger {
+			t.Fatal("update didn't work properly")
+		}
+	}
+}
+
 func TestRegenToken(t *testing.T) {
 	th := Setup().InitSystemAdmin()
 	Client := th.SystemAdminClient
@@ -146,14 +185,17 @@ func TestRegenToken(t *testing.T) {
 }
 
 func TestDeleteCommand(t *testing.T) {
-	th := Setup().InitSystemAdmin()
+	th := Setup().InitBasic().InitSystemAdmin()
 	Client := th.SystemAdminClient
 
 	enableCommands := *utils.Cfg.ServiceSettings.EnableCommands
+	onlyAdminIntegration := *utils.Cfg.ServiceSettings.EnableOnlyAdminIntegrations
 	defer func() {
-		utils.Cfg.ServiceSettings.EnableCommands = &enableCommands
+		*utils.Cfg.ServiceSettings.EnableCommands = enableCommands
+		*utils.Cfg.ServiceSettings.EnableOnlyAdminIntegrations = onlyAdminIntegration
 	}()
 	*utils.Cfg.ServiceSettings.EnableCommands = true
+	*utils.Cfg.ServiceSettings.EnableOnlyAdminIntegrations = false
 
 	cmd := &model.Command{URL: "http://nowhere.com", Method: model.COMMAND_METHOD_POST, Trigger: "trigger"}
 	cmd = Client.Must(Client.CreateCommand(cmd)).Data.(*model.Command)
@@ -168,6 +210,20 @@ func TestDeleteCommand(t *testing.T) {
 	cmds := Client.Must(Client.ListTeamCommands()).Data.([]*model.Command)
 	if len(cmds) != 0 {
 		t.Fatal("delete didn't work properly")
+	}
+
+	cmd2 := &model.Command{URL: "http://nowhere.com", Method: model.COMMAND_METHOD_POST, Trigger: "trigger2"}
+	cmd2 = Client.Must(Client.CreateCommand(cmd2)).Data.(*model.Command)
+
+	data2 := make(map[string]string)
+	data2["id"] = cmd2.Id
+	if _, err := th.BasicClient.DeleteCommand(data2); err == nil {
+		t.Fatal("Should have errored. Your not allowed to delete other's commands")
+	}
+
+	cmds2 := Client.Must(Client.ListTeamCommands()).Data.([]*model.Command)
+	if len(cmds2) != 1 {
+		t.Fatal("Client was able to delete command without permission.")
 	}
 }
 
@@ -190,7 +246,7 @@ func TestTestCommand(t *testing.T) {
 
 	cmd1 = Client.Must(Client.CreateCommand(cmd1)).Data.(*model.Command)
 
-	r1 := Client.Must(Client.Command(channel1.Id, "/test", false)).Data.(*model.CommandResponse)
+	r1 := Client.Must(Client.Command(channel1.Id, "/test")).Data.(*model.CommandResponse)
 	if r1 == nil {
 		t.Fatal("Test command failed to execute")
 	}
@@ -210,7 +266,7 @@ func TestTestCommand(t *testing.T) {
 
 	cmd2 = Client.Must(Client.CreateCommand(cmd2)).Data.(*model.Command)
 
-	r2 := Client.Must(Client.Command(channel1.Id, "/test2", false)).Data.(*model.CommandResponse)
+	r2 := Client.Must(Client.Command(channel1.Id, "/test2")).Data.(*model.CommandResponse)
 	if r2 == nil {
 		t.Fatal("Test2 command failed to execute")
 	}

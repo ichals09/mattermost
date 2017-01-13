@@ -98,7 +98,7 @@ const holders = defineMessages({
     },
     failedPassword: {
         id: 'audit_table.failedPassword',
-        defaultMessage: 'Failed to change password - tried to update user password who was logged in through oauth'
+        defaultMessage: 'Failed to change password - tried to update user password who was logged in through OAuth'
     },
     updatedRol: {
         id: 'audit_table.updatedRol',
@@ -237,7 +237,7 @@ class AuditTable extends React.Component {
                 sContent = <td className='word-break--all'>{auditInfo.sessionId}</td>;
             }
 
-            let descStyle = {};
+            const descStyle = {};
             if (auditInfo.desc.toLowerCase().indexOf('fail') !== -1) {
                 descStyle.color = 'red';
             }

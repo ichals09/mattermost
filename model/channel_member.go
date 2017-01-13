@@ -18,6 +18,14 @@ const (
 	CHANNEL_MARK_UNREAD_MENTION = "mention"
 )
 
+type ChannelUnread struct {
+	TeamId        string
+	TotalMsgCount int64
+	MsgCount      int64
+	MentionCount  int64
+	NotifyProps   StringMap
+}
+
 type ChannelMember struct {
 	ChannelId    string    `json:"channel_id"`
 	UserId       string    `json:"user_id"`
@@ -27,6 +35,27 @@ type ChannelMember struct {
 	MentionCount int64     `json:"mention_count"`
 	NotifyProps  StringMap `json:"notify_props"`
 	LastUpdateAt int64     `json:"last_update_at"`
+}
+
+type ChannelMembers []ChannelMember
+
+func (o *ChannelMembers) ToJson() string {
+	if b, err := json.Marshal(o); err != nil {
+		return "[]"
+	} else {
+		return string(b)
+	}
+}
+
+func ChannelMembersFromJson(data io.Reader) *ChannelMembers {
+	decoder := json.NewDecoder(data)
+	var o ChannelMembers
+	err := decoder.Decode(&o)
+	if err == nil {
+		return &o
+	} else {
+		return nil
+	}
 }
 
 func (o *ChannelMember) ToJson() string {

@@ -3,14 +3,22 @@
 
 import * as utils from 'utils/utils.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
+import TeamStore from 'stores/team_store.jsx';
 
 function getCountsStateFromStores() {
-    var count = 0;
-    var channels = ChannelStore.getAll();
-    var members = ChannelStore.getAllMembers();
+    let count = 0;
+    const teamMembers = TeamStore.getMyTeamMembers();
+    const channels = ChannelStore.getAll();
+    const members = ChannelStore.getMyMembers();
+
+    teamMembers.forEach((member) => {
+        if (member.team_id !== TeamStore.getCurrentId()) {
+            count += (member.mention_count || 0);
+        }
+    });
 
     channels.forEach((channel) => {
-        var channelMember = members[channel.id];
+        const channelMember = members[channel.id];
         if (channelMember == null) {
             return;
         }
@@ -19,8 +27,6 @@ function getCountsStateFromStores() {
             count += channel.total_msg_count - channelMember.msg_count;
         } else if (channelMember.mention_count > 0) {
             count += channelMember.mention_count;
-        } else if (channelMember.notify_props.mark_unread !== 'mention' && channel.total_msg_count - channelMember.msg_count > 0) {
-            count += 1;
         }
     });
 
@@ -41,10 +47,12 @@ export default class NotifyCounts extends React.Component {
     componentDidMount() {
         this.mounted = true;
         ChannelStore.addChangeListener(this.onListenerChange);
+        TeamStore.addChangeListener(this.onListenerChange);
     }
     componentWillUnmount() {
         this.mounted = false;
         ChannelStore.removeChangeListener(this.onListenerChange);
+        TeamStore.removeChangeListener(this.onListenerChange);
     }
     onListenerChange() {
         if (this.mounted) {

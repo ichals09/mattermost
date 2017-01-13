@@ -7,7 +7,7 @@ import * as Utils from 'utils/utils.jsx';
 
 import AdminSettings from './admin_settings.jsx';
 import BooleanSetting from './boolean_setting.jsx';
-import ConnectionSecurityDropdownSetting from './connection_security_dropdown_setting.jsx';
+import {ConnectionSecurityDropdownSettingEmail} from './connection_security_dropdown_setting.jsx';
 import EmailConnectionTest from './email_connection_test.jsx';
 import {FormattedHTMLMessage, FormattedMessage} from 'react-intl';
 import SettingsGroup from './settings_group.jsx';
@@ -255,7 +255,7 @@ export default class EmailSettings extends AdminSettings {
                             defaultMessage='SMTP Server Port:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.email.smtpPortExample', 'Ex: "25", "465"')}
+                    placeholder={Utils.localizeMessage('admin.email.smtpPortExample', 'Ex: "25", "465", "587"')}
                     helpText={
                         <FormattedMessage
                             id='admin.email.smtpPortDescription'
@@ -266,13 +266,14 @@ export default class EmailSettings extends AdminSettings {
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications}
                 />
-                <ConnectionSecurityDropdownSetting
+                <ConnectionSecurityDropdownSettingEmail
                     value={this.state.connectionSecurity}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications}
                 />
                 <EmailConnectionTest
-                    config={this.getConfigFromState(this.props.config)}
+                    config={this.props.config}
+                    getConfigFromState={this.getConfigFromState}
                     disabled={!this.state.sendEmailNotifications}
                 />
                 <BooleanSetting

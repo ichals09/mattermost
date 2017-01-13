@@ -14,10 +14,12 @@ import * as AsyncClient from 'utils/async_client.jsx';
 import * as Utils from 'utils/utils.jsx';
 import Constants from 'utils/constants.jsx';
 
+import {updatePassword} from 'actions/user_actions.jsx';
+
 import $ from 'jquery';
 import React from 'react';
-import {FormattedMessage, FormattedHTMLMessage, FormattedTime, FormattedDate} from 'react-intl';
-import {Link} from 'react-router/es6';
+import {FormattedMessage, FormattedTime, FormattedDate} from 'react-intl';
+import {browserHistory, Link} from 'react-router/es6';
 
 import icon50 from 'images/icon50x50.png';
 
@@ -26,17 +28,15 @@ export default class SecurityTab extends React.Component {
         super(props);
 
         this.submitPassword = this.submitPassword.bind(this);
-        this.activateMfa = this.activateMfa.bind(this);
+        this.setupMfa = this.setupMfa.bind(this);
         this.deactivateMfa = this.deactivateMfa.bind(this);
         this.updateCurrentPassword = this.updateCurrentPassword.bind(this);
         this.updateNewPassword = this.updateNewPassword.bind(this);
         this.updateConfirmPassword = this.updateConfirmPassword.bind(this);
-        this.updateMfaToken = this.updateMfaToken.bind(this);
         this.getDefaultState = this.getDefaultState.bind(this);
         this.createPasswordSection = this.createPasswordSection.bind(this);
         this.createSignInSection = this.createSignInSection.bind(this);
         this.createOAuthAppsSection = this.createOAuthAppsSection.bind(this);
-        this.showQrCode = this.showQrCode.bind(this);
         this.deauthorizeApp = this.deauthorizeApp.bind(this);
 
         this.state = this.getDefaultState();
@@ -49,9 +49,7 @@ export default class SecurityTab extends React.Component {
             confirmPassword: '',
             passwordError: '',
             serverError: '',
-            authService: this.props.user.auth_service,
-            mfaShowQr: false,
-            mfaToken: ''
+            authService: this.props.user.auth_service
         };
     }
 
@@ -95,7 +93,7 @@ export default class SecurityTab extends React.Component {
             return;
         }
 
-        Client.updatePassword(
+        updatePassword(
             user.id,
             currentPassword,
             newPassword,
@@ -117,26 +115,9 @@ export default class SecurityTab extends React.Component {
         );
     }
 
-    activateMfa() {
-        Client.updateMfa(
-            this.state.mfaToken,
-            true,
-            () => {
-                this.props.updateSection('');
-                AsyncClient.getMe();
-                this.setState(this.getDefaultState());
-            },
-            (err) => {
-                const state = this.getDefaultState();
-                if (err.message) {
-                    state.serverError = err.message;
-                } else {
-                    state.serverError = err;
-                }
-                state.mfaError = '';
-                this.setState(state);
-            }
-        );
+    setupMfa(e) {
+        e.preventDefault();
+        browserHistory.push('/mfa/setup');
     }
 
     deactivateMfa() {
@@ -144,6 +125,13 @@ export default class SecurityTab extends React.Component {
             '',
             false,
             () => {
+                if (global.window.mm_license.MFA === 'true' &&
+                        global.window.mm_config.EnableMultifactorAuthentication === 'true' &&
+                        global.window.mm_config.EnforceMultifactorAuthentication === 'true') {
+                    window.location.href = '/mfa/setup';
+                    return;
+                }
+
                 this.props.updateSection('');
                 AsyncClient.getMe();
                 this.setState(this.getDefaultState());
@@ -155,7 +143,6 @@ export default class SecurityTab extends React.Component {
                 } else {
                     state.serverError = err;
                 }
-                state.mfaError = '';
                 this.setState(state);
             }
         );
@@ -171,15 +158,6 @@ export default class SecurityTab extends React.Component {
 
     updateConfirmPassword(e) {
         this.setState({confirmPassword: e.target.value});
-    }
-
-    updateMfaToken(e) {
-        this.setState({mfaToken: e.target.value});
-    }
-
-    showQrCode(e) {
-        e.preventDefault();
-        this.setState({mfaShowQr: true});
     }
 
     deauthorizeApp(e) {
@@ -207,6 +185,39 @@ export default class SecurityTab extends React.Component {
             let content;
             let extraInfo;
             if (this.props.user.mfa_active) {
+                let mfaRemoveHelp;
+                let mfaButtonText;
+
+                if (global.window.mm_config.EnforceMultifactorAuthentication === 'true') {
+                    mfaRemoveHelp = (
+                        <FormattedMessage
+                            id='user.settings.mfa.requiredHelp'
+                            defaultMessage='Multi-factor authentication is required on this server. Resetting is only recommended when you need to switch code generation to a new mobile device. You will be required to set it up again immediately.'
+                        />
+                    );
+
+                    mfaButtonText = (
+                        <FormattedMessage
+                            id='user.settings.mfa.reset'
+                            defaultMessage='Reset MFA on your account'
+                        />
+                    );
+                } else {
+                    mfaRemoveHelp = (
+                        <FormattedMessage
+                            id='user.settings.mfa.removeHelp'
+                            defaultMessage='Removing multi-factor authentication means you will no longer require a phone-based passcode to sign-in to your account.'
+                        />
+                    );
+
+                    mfaButtonText = (
+                        <FormattedMessage
+                            id='user.settings.mfa.remove'
+                            defaultMessage='Remove MFA from your account'
+                        />
+                    );
+                }
+
                 content = (
                     <div key='mfaQrCode'>
                         <a
@@ -214,10 +225,7 @@ export default class SecurityTab extends React.Component {
                             href='#'
                             onClick={this.deactivateMfa}
                         >
-                            <FormattedMessage
-                                id='user.settings.mfa.remove'
-                                defaultMessage='Remove MFA from your account'
-                            />
+                            {mfaButtonText}
                         </a>
                         <br/>
                     </div>
@@ -225,66 +233,16 @@ export default class SecurityTab extends React.Component {
 
                 extraInfo = (
                     <span>
-                        <FormattedMessage
-                            id='user.settings.mfa.removeHelp'
-                            defaultMessage='Removing multi-factor authentication will make your account more vulnerable to attacks.'
-                        />
+                        {mfaRemoveHelp}
                     </span>
                 );
-            } else if (this.state.mfaShowQr) {
-                content = (
-                    <div key='mfaButton'>
-                        <div className='form-group'>
-                            <label className='col-sm-5 control-label'>
-                                <FormattedMessage
-                                    id='user.settings.mfa.qrCode'
-                                    defaultMessage='Bar Code'
-                                />
-                            </label>
-                            <div className='col-sm-7'>
-                                <img
-                                    className='qr-code-img'
-                                    src={Client.getUsersRoute() + '/generate_mfa_qr?time=' + this.props.user.update_at}
-                                />
-                            </div>
-                        </div>
-                        <div className='form-group'>
-                            <label className='col-sm-5 control-label'>
-                                <FormattedMessage
-                                    id='user.settings.mfa.enterToken'
-                                    defaultMessage='Token (numbers only)'
-                                />
-                            </label>
-                            <div className='col-sm-7'>
-                                <input
-                                    className='form-control'
-                                    type='number'
-                                    autoFocus={true}
-                                    onChange={this.updateMfaToken}
-                                    value={this.state.mfaToken}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                );
-
-                extraInfo = (
-                    <span>
-                        <FormattedMessage
-                            id='user.settings.mfa.addHelpQr'
-                            defaultMessage='Please scan the QR code with the Google Authenticator app on your smartphone and fill in the token with one provided by the app.'
-                        />
-                    </span>
-                );
-
-                submit = this.activateMfa;
             } else {
                 content = (
                     <div key='mfaQrCode'>
                         <a
                             className='btn btn-primary'
                             href='#'
-                            onClick={this.showQrCode}
+                            onClick={this.setupMfa}
                         >
                             <FormattedMessage
                                 id='user.settings.mfa.add'
@@ -297,9 +255,9 @@ export default class SecurityTab extends React.Component {
 
                 extraInfo = (
                     <span>
-                        <FormattedHTMLMessage
+                        <FormattedMessage
                             id='user.settings.mfa.addHelp'
-                            defaultMessage="You can require a smartphone-based token, in addition to your password, to sign into Mattermost.<br/><br/>To enable, download Google Authenticator from <a target='_blank' href='https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8'>iTunes</a> or <a target='_blank' href='https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en'>Google Play</a> for your phone, then<br/><br/>1. Click the <strong>Add MFA to your account</strong> button above.<br/>2. Use Google Authenticator to scan the QR code that appears.<br/>3. Type in the Token generated by Google Authenticator and click <strong>Save</strong>.<br/><br/>When logging in, you will be asked to enter a token from Google Authenticator in addition to your regular credentials."
+                            defaultMessage='Adding multi-factor authentication will make your account more secure by requiring a code from your mobile phone each time you sign in.'
                         />
                     </span>
                 );
@@ -309,7 +267,7 @@ export default class SecurityTab extends React.Component {
             inputs.push(
                 <div
                     key='mfaSetting'
-                    className='form-group'
+                    className='padding-top'
                 >
                     {content}
                 </div>
@@ -317,7 +275,7 @@ export default class SecurityTab extends React.Component {
 
             updateSectionStatus = function resetSection(e) {
                 this.props.updateSection('');
-                this.setState({mfaToken: '', mfaShowQr: false, mfaError: null, serverError: null});
+                this.setState({serverError: null});
                 e.preventDefault();
             }.bind(this);
 
@@ -328,8 +286,8 @@ export default class SecurityTab extends React.Component {
                     extraInfo={extraInfo}
                     submit={submit}
                     server_error={this.state.serverError}
-                    client_error={this.state.mfaError}
                     updateSection={updateSectionStatus}
+                    width='medium'
                 />
             );
         }
@@ -455,6 +413,48 @@ export default class SecurityTab extends React.Component {
                         </div>
                     </div>
                 );
+            } else if (this.props.user.auth_service === Constants.SAML_SERVICE) {
+                inputs.push(
+                    <div
+                        key='oauthEmailInfo'
+                        className='form-group'
+                    >
+                        <div className='setting-list__hint'>
+                            <FormattedMessage
+                                id='user.settings.security.passwordSamlCantUpdate'
+                                defaultMessage='This field is handled through your login provider. If you want to change it, you need to do so through your login provider.'
+                            />
+                        </div>
+                    </div>
+                );
+            } else if (this.props.user.auth_service === Constants.GOOGLE_SERVICE) {
+                inputs.push(
+                    <div
+                        key='oauthEmailInfo'
+                        className='form-group'
+                    >
+                        <div className='setting-list__hint'>
+                            <FormattedMessage
+                                id='user.settings.security.passwordGoogleCantUpdate'
+                                defaultMessage='Login occurs through Google Apps. Password cannot be updated.'
+                            />
+                        </div>
+                    </div>
+                );
+            } else if (this.props.user.auth_service === Constants.OFFICE365_SERVICE) {
+                inputs.push(
+                    <div
+                        key='oauthEmailInfo'
+                        className='form-group'
+                    >
+                        <div className='setting-list__hint'>
+                            <FormattedMessage
+                                id='user.settings.security.passwordOffice365CantUpdate'
+                                defaultMessage='Login occurs through Office 365. Password cannot be updated.'
+                            />
+                        </div>
+                    </div>
+                );
             }
 
             updateSectionStatus = function resetSection(e) {
@@ -515,7 +515,7 @@ export default class SecurityTab extends React.Component {
             describe = (
                 <FormattedMessage
                     id='user.settings.security.loginGitlab'
-                    defaultMessage='Login done through Gitlab'
+                    defaultMessage='Login done through GitLab'
                 />
             );
         } else if (this.props.user.auth_service === Constants.LDAP_SERVICE) {
@@ -523,6 +523,27 @@ export default class SecurityTab extends React.Component {
                 <FormattedMessage
                     id='user.settings.security.loginLdap'
                     defaultMessage='Login done through AD/LDAP'
+                />
+            );
+        } else if (this.props.user.auth_service === Constants.SAML_SERVICE) {
+            describe = (
+                <FormattedMessage
+                    id='user.settings.security.loginSaml'
+                    defaultMessage='Login done through SAML'
+                />
+            );
+        } else if (this.props.user.auth_service === Constants.GOOGLE_SERVICE) {
+            describe = (
+                <FormattedMessage
+                    id='user.settings.security.loginGoogle'
+                    defaultMessage='Login done through Google Apps'
+                />
+            );
+        } else if (this.props.user.auth_service === Constants.OFFICE365_SERVICE) {
+            describe = (
+                <FormattedMessage
+                    id='user.settings.security.loginOffice365'
+                    defaultMessage='Login done through Office 365'
                 />
             );
         }
@@ -910,8 +931,9 @@ export default class SecurityTab extends React.Component {
         numMethods = config.EnableLdap === 'true' ? numMethods + 1 : numMethods;
         numMethods = config.EnableSaml === 'true' ? numMethods + 1 : numMethods;
 
+        // If there are other sign-in methods and either email is enabled or the user's account is email, then allow switching
         let signInSection;
-        if (config.EnableSignUpWithEmail === 'true' && numMethods > 0) {
+        if ((config.EnableSignUpWithEmail === 'true' || user.auth_service === '') && numMethods > 0) {
             signInSection = this.createSignInSection();
         }
 
@@ -971,23 +993,23 @@ export default class SecurityTab extends React.Component {
                     <div className='divider-light'/>
                     {signInSection}
                     <div className='divider-dark'/>
-                    <br></br>
+                    <br/>
                     <ToggleModalButton
                         className='security-links theme'
                         dialogType={AccessHistoryModal}
                     >
-                        <i className='fa fa-clock-o'></i>
+                        <i className='fa fa-clock-o'/>
                         <FormattedMessage
                             id='user.settings.security.viewHistory'
                             defaultMessage='View Access History'
                         />
                     </ToggleModalButton>
-                    <b> </b>
+                    <b/>
                     <ToggleModalButton
                         className='security-links theme'
                         dialogType={ActivityLogModal}
                     >
-                        <i className='fa fa-clock-o'></i>
+                        <i className='fa fa-clock-o'/>
                         <FormattedMessage
                             id='user.settings.security.logoutActiveSessions'
                             defaultMessage='View and Logout of Active Sessions'

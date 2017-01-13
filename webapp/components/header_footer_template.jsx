@@ -16,11 +16,12 @@ export default class NotLoggedIn extends React.Component {
         $('#root').removeClass('container-fluid');
     }
     render() {
-        let content = [];
+        const content = [];
 
         if (global.window.mm_config.HelpLink) {
             content.push(
                 <a
+                    key='help_link'
                     id='help_link'
                     className='pull-right footer-link'
                     target='_blank'
@@ -35,6 +36,7 @@ export default class NotLoggedIn extends React.Component {
         if (global.window.mm_config.TermsOfServiceLink) {
             content.push(
                 <a
+                    key='terms_link'
                     id='terms_link'
                     className='pull-right footer-link'
                     target='_blank'
@@ -49,6 +51,7 @@ export default class NotLoggedIn extends React.Component {
         if (global.window.mm_config.PrivacyPolicyLink) {
             content.push(
                 <a
+                    key='privacy_link'
                     id='privacy_link'
                     className='pull-right footer-link'
                     target='_blank'
@@ -63,6 +66,7 @@ export default class NotLoggedIn extends React.Component {
         if (global.window.mm_config.AboutLink) {
             content.push(
                 <a
+                    key='about_link'
                     id='about_link'
                     className='pull-right footer-link'
                     target='_blank'
@@ -78,7 +82,7 @@ export default class NotLoggedIn extends React.Component {
             <div className='inner-wrap'>
                 <div className='row content'>
                     {this.props.children}
-                    <div className='footer-push'></div>
+                    <div className='footer-push'/>
                 </div>
                 <div className='row footer'>
                     <div className='footer-pane col-xs-12'>

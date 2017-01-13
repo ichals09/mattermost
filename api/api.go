@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/mattermost/platform/einterfaces"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
 
@@ -33,7 +34,9 @@ type Routes struct {
 	Commands *mux.Router // 'api/v3/teams/{team_id:[A-Za-z0-9]+}/commands'
 	Hooks    *mux.Router // 'api/v3/teams/{team_id:[A-Za-z0-9]+}/hooks'
 
-	Files *mux.Router // 'api/v3/teams/{team_id:[A-Za-z0-9]+}/files'
+	TeamFiles *mux.Router // 'api/v3/teams/{team_id:[A-Za-z0-9]+}/files'
+	Files     *mux.Router // 'api/v3/files'
+	NeedFile  *mux.Router // 'api/v3/files/{file_id:[A-Za-z0-9]+}'
 
 	OAuth *mux.Router // 'api/v3/oauth'
 
@@ -48,6 +51,8 @@ type Routes struct {
 	Public *mux.Router // 'api/v3/public'
 
 	Emoji *mux.Router // 'api/v3/emoji'
+
+	Webrtc *mux.Router // 'api/v3/webrtc'
 
 	WebSocket *WebSocketRouter // websocket api
 }
@@ -68,7 +73,9 @@ func InitApi() {
 	BaseRoutes.Posts = BaseRoutes.NeedChannel.PathPrefix("/posts").Subrouter()
 	BaseRoutes.NeedPost = BaseRoutes.Posts.PathPrefix("/{post_id:[A-Za-z0-9]+}").Subrouter()
 	BaseRoutes.Commands = BaseRoutes.NeedTeam.PathPrefix("/commands").Subrouter()
-	BaseRoutes.Files = BaseRoutes.NeedTeam.PathPrefix("/files").Subrouter()
+	BaseRoutes.TeamFiles = BaseRoutes.NeedTeam.PathPrefix("/files").Subrouter()
+	BaseRoutes.Files = BaseRoutes.ApiRoot.PathPrefix("/files").Subrouter()
+	BaseRoutes.NeedFile = BaseRoutes.Files.PathPrefix("/{file_id:[A-Za-z0-9]+}").Subrouter()
 	BaseRoutes.Hooks = BaseRoutes.NeedTeam.PathPrefix("/hooks").Subrouter()
 	BaseRoutes.OAuth = BaseRoutes.ApiRoot.PathPrefix("/oauth").Subrouter()
 	BaseRoutes.Admin = BaseRoutes.ApiRoot.PathPrefix("/admin").Subrouter()
@@ -77,6 +84,7 @@ func InitApi() {
 	BaseRoutes.License = BaseRoutes.ApiRoot.PathPrefix("/license").Subrouter()
 	BaseRoutes.Public = BaseRoutes.ApiRoot.PathPrefix("/public").Subrouter()
 	BaseRoutes.Emoji = BaseRoutes.ApiRoot.PathPrefix("/emoji").Subrouter()
+	BaseRoutes.Webrtc = BaseRoutes.ApiRoot.PathPrefix("/webrtc").Subrouter()
 
 	BaseRoutes.WebSocket = NewWebSocketRouter()
 
@@ -95,6 +103,9 @@ func InitApi() {
 	InitLicense()
 	InitEmoji()
 	InitStatus()
+	InitWebrtc()
+	InitReaction()
+	InitDeprecated()
 
 	// 404 on any api route before web.go has a chance to serve it
 	Srv.Router.Handle("/api/{anything:.*}", http.HandlerFunc(Handle404))
@@ -104,12 +115,21 @@ func InitApi() {
 	InitEmailBatching()
 }
 
-func HandleEtag(etag string, w http.ResponseWriter, r *http.Request) bool {
+func HandleEtag(etag string, routeName string, w http.ResponseWriter, r *http.Request) bool {
+	metrics := einterfaces.GetMetricsInterface()
 	if et := r.Header.Get(model.HEADER_ETAG_CLIENT); len(etag) > 0 {
 		if et == etag {
+			w.Header().Set(model.HEADER_ETAG_SERVER, etag)
 			w.WriteHeader(http.StatusNotModified)
+			if metrics != nil {
+				metrics.IncrementEtagHitCounter(routeName)
+			}
 			return true
 		}
+	}
+
+	if metrics != nil {
+		metrics.IncrementEtagMissCounter(routeName)
 	}
 
 	return false

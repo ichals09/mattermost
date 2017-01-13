@@ -15,8 +15,9 @@ import Constants from 'utils/constants.jsx';
 export default class ConfirmIntegration extends React.Component {
     static get propTypes() {
         return {
-            team: React.propTypes.object.isRequired,
-            location: React.PropTypes.object
+            team: React.PropTypes.object,
+            location: React.PropTypes.object,
+            loading: React.PropTypes.bool
         };
     }
 
@@ -56,6 +57,11 @@ export default class ConfirmIntegration extends React.Component {
         let headerText = null;
         let helpText = null;
         let tokenText = null;
+
+        if (this.props.loading === true) {
+            return (<div/>);
+        }
+
         if (this.state.type === Constants.Integrations.COMMAND) {
             headerText = (
                 <FormattedMessage
@@ -153,15 +159,15 @@ export default class ConfirmIntegration extends React.Component {
 
                 helpText = [];
                 helpText.push(
-                    <p>
-                        <FormattedMessage
+                    <p key='add_oauth_app.doneHelp'>
+                        <FormattedHTMLMessage
                             id='add_oauth_app.doneHelp'
-                            defaultMessage='Your OAuth 2.0 application has been set up. Please use the following Client ID and Client Secret when requesting authorization for your application.'
+                            defaultMessage='Your OAuth 2.0 application has been set up. Please use the following Client ID and Client Secret when requesting authorization for your application (see <a href="https://docs.mattermost.com/developer/oauth-2-0-applications.html">documentation</a> for further details).'
                         />
                     </p>
                 );
                 helpText.push(
-                    <p>
+                    <p key='add_oauth_app.clientId'>
                         <FormattedHTMLMessage
                             id='add_oauth_app.clientId'
                             defaultMessage='<b>Client ID:</b> {id}'
@@ -180,7 +186,7 @@ export default class ConfirmIntegration extends React.Component {
                 );
 
                 helpText.push(
-                    <p>
+                    <p key='add_oauth_app.doneUrlHelp'>
                         <FormattedHTMLMessage
                             id='add_oauth_app.doneUrlHelp'
                             defaultMessage='The following are your authorized redirect URL(s).'

@@ -42,6 +42,9 @@ GO_LINKER_FLAGS ?= -ldflags \
 				    -X github.com/mattermost/platform/model.BuildHashEnterprise=$(BUILD_HASH_ENTERPRISE)\
 				    -X github.com/mattermost/platform/model.BuildEnterpriseReady=$(BUILD_ENTERPRISE_READY)"
 
+# GOOS/GOARCH of the build host, used to determine whether we're cross-compiling or not
+BUILDER_GOOS_GOARCH="$(shell $(GO) env GOOS)_$(shell $(GO) env GOARCH)"
+
 # Output paths
 DIST_ROOT=dist
 DIST_PATH=$(DIST_ROOT)/mattermost
@@ -74,6 +77,15 @@ start-docker:
 		docker start mattermost-postgres > /dev/null; \
 	fi
 
+	@if [ $(shell docker ps -a | grep -ci mattermost-webrtc) -eq 0 ]; then \
+    	echo starting mattermost-webrtc; \
+        docker run --name mattermost-webrtc -p 7088:7088 -p 7089:7089 -p 8188:8188 -p 8189:8189 -d mattermost/webrtc:latest > /dev/null; \
+    elif [ $(shell docker ps | grep -ci mattermost-webrtc) -eq 0 ]; then \
+    	echo restarting mattermost-webrtc; \
+        docker start mattermost-webrtc > /dev/null; \
+    fi
+
+ifeq ($(BUILD_ENTERPRISE_READY),true)
 	@echo Ldap test user test.one
 	@if [ $(shell docker ps -a | grep -ci mattermost-openldap) -eq 0 ]; then \
 		echo starting mattermost-openldap; \
@@ -95,6 +107,7 @@ start-docker:
 		docker start mattermost-openldap > /dev/null; \
 		sleep 10; \
 	fi
+endif
 
 stop-docker:
 	@echo Stopping docker containers
@@ -108,10 +121,15 @@ stop-docker:
 		echo stopping mattermost-postgres; \
 		docker stop mattermost-postgres > /dev/null; \
 	fi
-	
+
 	@if [ $(shell docker ps -a | grep -ci mattermost-openldap) -eq 1 ]; then \
 		echo stopping mattermost-openldap; \
 		docker stop mattermost-openldap > /dev/null; \
+	fi
+
+	@if [ $(shell docker ps -a | grep -ci mattermost-webrtc) -eq 1 ]; then \
+		echo stopping mattermost-webrtc; \
+		docker stop mattermost-webrtc > /dev/null; \
 	fi
 
 clean-docker:
@@ -135,14 +153,20 @@ clean-docker:
 		docker rm -v mattermost-openldap > /dev/null; \
 	fi
 
+	@if [ $(shell docker ps -a | grep -ci mattermost-webrtc) -eq 1 ]; then \
+		echo removing mattermost-webrtc; \
+		docker stop mattermost-webrtc > /dev/null; \
+		docker rm -v mattermost-webrtc > /dev/null; \
+	fi
+
 check-client-style:
 	@echo Checking client style
 
 	cd $(BUILD_WEBAPP_DIR) && $(MAKE) check-style
-	
+
 check-server-style:
 	@echo Running GOFMT
-	$(eval GOFMT_OUTPUT := $(shell gofmt -d -s api/ model/ store/ utils/ manualtesting/ einterfaces/ mattermost.go 2>&1))
+	$(eval GOFMT_OUTPUT := $(shell gofmt -d -s api/ model/ store/ utils/ manualtesting/ einterfaces/ cmd/platform/ 2>&1))
 	@echo "$(GOFMT_OUTPUT)"
 	@if [ ! "$(GOFMT_OUTPUT)" ]; then \
 		echo "gofmt sucess"; \
@@ -180,34 +204,36 @@ ifeq ($(BUILD_ENTERPRISE_READY),true)
 
 	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/ldap && ./ldap.test -test.v -test.timeout=120s -test.coverprofile=cldap.out || exit 1
 	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/compliance && ./compliance.test -test.v -test.timeout=120s -test.coverprofile=ccompliance.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/mfa && ./mfa.test -test.v -test.timeout=120s -test.coverprofile=cmfa.out || exit 1
 	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/emoji && ./emoji.test -test.v -test.timeout=120s -test.coverprofile=cemoji.out || exit 1
 	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/saml && ./saml.test -test.v -test.timeout=60s -test.coverprofile=csaml.out || exit 1
 	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/cluster && ./cluster.test -test.v -test.timeout=60s -test.coverprofile=ccluster.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/metrics && ./metrics.test -test.v -test.timeout=60s -test.coverprofile=cmetrics.out || exit 1
 	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/account_migration && ./account_migration.test -test.v -test.timeout=60s -test.coverprofile=caccount_migration.out || exit 1
 
 	tail -n +2 cldap.out >> ecover.out
 	tail -n +2 ccompliance.out >> ecover.out
+	tail -n +2 cmfa.out >> ecover.out
 	tail -n +2 cemoji.out >> ecover.out
 	tail -n +2 csaml.out >> ecover.out
 	tail -n +2 ccluster.out >> ecover.out
+	tail -n +2 cmetrics.out >> ecover.out
 	tail -n +2 caccount_migration.out >> ecover.out
-	rm -f cldap.out ccompliance.out cemoji.out csaml.out ccluster.out caccount_migration.out
-
+	rm -f cldap.out ccompliance.out cmfa.out cemoji.out csaml.out ccluster.out cmetrics.out caccount_migration.out
 	rm -r ldap.test
 	rm -r compliance.test
+	rm -r mfa.test
 	rm -r emoji.test
 	rm -r saml.test
 	rm -r cluster.test
+	rm -r metrics.test
 	rm -r account_migration.test
 	rm -f config/*.crt
 	rm -f config/*.key
 endif
 
 internal-test-web-client: start-docker prepare-enterprise
-	$(GO) run $(GOFLAGS) *.go -run_web_client_tests
-
-internal-test-javascript-client: start-docker prepare-enterprise
-	$(GO) run $(GOFLAGS) *.go -run_javascript_client_tests
+	$(GO) run $(GOFLAGS) ./cmd/platform/*go test web_client_tests
 
 test-client: start-docker prepare-enterprise
 	@echo Running client tests
@@ -231,22 +257,22 @@ cover:
 prepare-enterprise:
 ifeq ($(BUILD_ENTERPRISE_READY),true)
 	@echo Enterprise build selected, preparing
-	cp $(BUILD_ENTERPRISE_DIR)/imports.go .
+	cp $(BUILD_ENTERPRISE_DIR)/imports.go cmd/platform/
 	rm -f enterprise
 	ln -s $(BUILD_ENTERPRISE_DIR) enterprise
 endif
 
 build-linux: .prebuild prepare-enterprise
 	@echo Build Linux amd64
-	env GOOS=linux GOARCH=amd64 $(GO) install $(GOFLAGS) $(GO_LINKER_FLAGS) $(go list ./... | grep -v /vendor/)
+	env GOOS=linux GOARCH=amd64 $(GO) install $(GOFLAGS) $(GO_LINKER_FLAGS) ./cmd/platform
 
 build-osx: .prebuild prepare-enterprise
 	@echo Build OSX amd64
-	env GOOS=darwin GOARCH=amd64 $(GO) install $(GOFLAGS) $(GO_LINKER_FLAGS) $(go list ./... | grep -v /vendor/) 
+	env GOOS=darwin GOARCH=amd64 $(GO) install $(GOFLAGS) $(GO_LINKER_FLAGS) ./cmd/platform
 
 build-windows: .prebuild prepare-enterprise
 	@echo Build Windows amd64
-	env GOOS=windows GOARCH=amd64 $(GO) install $(GOFLAGS) $(GO_LINKER_FLAGS) $(go list ./... | grep -v /vendor/) 
+	env GOOS=windows GOARCH=amd64 $(GO) install $(GOFLAGS) $(GO_LINKER_FLAGS) ./cmd/platform
 
 build: build-linux build-windows build-osx
 
@@ -272,6 +298,9 @@ package: build build-client
 	cp -RL templates $(DIST_PATH)
 	cp -RL i18n $(DIST_PATH)
 
+	@# Disable developer settings
+	sed -i'' -e 's|"ConsoleLevel": "DEBUG"|"ConsoleLevel": "INFO"|g' $(DIST_PATH)/config/config.json
+
 	@# Package webapp
 	mkdir -p $(DIST_PATH)/webapp/dist
 	cp -RL $(BUILD_WEBAPP_DIR)/dist $(DIST_PATH)/webapp
@@ -289,7 +318,11 @@ endif
 
 	@# Make osx package
 	@# Copy binary
-	cp $(GOPATH)/bin/darwin_amd64/platform $(DIST_PATH)/bin
+ifeq ($(BUILDER_GOOS_GOARCH),"darwin_amd64")
+	cp $(GOPATH)/bin/platform $(DIST_PATH)/bin # from native bin dir, not cross-compiled
+else
+	cp $(GOPATH)/bin/darwin_amd64/platform $(DIST_PATH)/bin # from cross-compiled bin dir
+endif
 	@# Package
 	tar -C dist -czf $(DIST_PATH)-$(BUILD_TYPE_NAME)-osx-amd64.tar.gz mattermost
 	@# Cleanup
@@ -297,18 +330,26 @@ endif
 
 	@# Make windows package
 	@# Copy binary
-	cp $(GOPATH)/bin/windows_amd64/platform.exe $(DIST_PATH)/bin
+ifeq ($(BUILDER_GOOS_GOARCH),"windows_amd64")
+	cp $(GOPATH)/bin/platform.exe $(DIST_PATH)/bin # from native bin dir, not cross-compiled
+else
+	cp $(GOPATH)/bin/windows_amd64/platform.exe $(DIST_PATH)/bin # from cross-compiled bin dir
+endif
 	@# Package
-	tar -C dist -czf $(DIST_PATH)-$(BUILD_TYPE_NAME)-windows-amd64.tar.gz mattermost
+	cd $(DIST_ROOT) && zip -9 -r -q -l mattermost-$(BUILD_TYPE_NAME)-windows-amd64.zip mattermost && cd ..
 	@# Cleanup
 	rm -f $(DIST_PATH)/bin/platform.exe
 
 	@# Make linux package
 	@# Copy binary
-	cp $(GOPATH)/bin/platform $(DIST_PATH)/bin
+ifeq ($(BUILDER_GOOS_GOARCH),"linux_amd64")
+	cp $(GOPATH)/bin/platform $(DIST_PATH)/bin # from native bin dir, not cross-compiled
+else
+	cp $(GOPATH)/bin/linux_amd64/platform $(DIST_PATH)/bin # from cross-compiled bin dir
+endif
 	@# Package
 	tar -C dist -czf $(DIST_PATH)-$(BUILD_TYPE_NAME)-linux-amd64.tar.gz mattermost
-	@# Don't cleanup linux package so dev machines will have an unziped linux package avalilable
+	@# Don't clean up native package so dev machines will have an unzipped package available
 	@#rm -f $(DIST_PATH)/bin/platform
 
 
@@ -316,13 +357,13 @@ run-server: prepare-enterprise start-docker
 	@echo Running mattermost for development
 
 	mkdir -p $(BUILD_WEBAPP_DIR)/dist/files
-	$(GO) run $(GOFLAGS) $(GO_LINKER_FLAGS) *.go &
+	$(GO) run $(GOFLAGS) $(GO_LINKER_FLAGS) ./cmd/platform/*.go &
 
 run-cli: prepare-enterprise start-docker
 	@echo Running mattermost for development
-	@echo Example should be like >'make ARGS="-version" run-cli'
+	@echo Example should be like 'make ARGS="-version" run-cli'
 
-	$(GO) run $(GOFLAGS) $(GO_LINKER_FLAGS) *.go ${ARGS}
+	$(GO) run $(GOFLAGS) $(GO_LINKER_FLAGS) ./cmd/platform/*.go ${ARGS}
 
 run-client:
 	@echo Running mattermost client for development
@@ -341,21 +382,24 @@ run-fullmap: run-server run-client-fullmap
 stop-server:
 	@echo Stopping mattermost
 
+ifeq ($(BUILDER_GOOS_GOARCH),"windows_amd64")
+	wmic process where "Caption='go.exe' and CommandLine like '%go.exe run%'" call terminate
+	wmic process where "Caption='mattermost.exe' and CommandLine like '%go-build%'" call terminate
+else
 	@for PID in $$(ps -ef | grep "[g]o run" | awk '{ print $$2 }'); do \
 		echo stopping go $$PID; \
 		kill $$PID; \
 	done
-
 	@for PID in $$(ps -ef | grep "[g]o-build" | awk '{ print $$2 }'); do \
 		echo stopping mattermost $$PID; \
 		kill $$PID; \
 	done
+endif
 
 stop-client:
 	@echo Stopping mattermost client
 
 	cd $(BUILD_WEBAPP_DIR) && $(MAKE) stop
-
 
 stop: stop-server stop-client
 
@@ -393,3 +437,15 @@ nuke: clean clean-docker
 
 setup-mac:
 	echo $$(boot2docker ip 2> /dev/null) dockerhost | sudo tee -a /etc/hosts
+
+todo:
+	@ag --ignore Makefile --ignore-dir vendor --ignore-dir runtime --ignore-dir webapp/non_npm_dependencies/ TODO
+	@ag --ignore Makefile --ignore-dir vendor --ignore-dir runtime --ignore-dir webapp/non_npm_dependencies/ XXX
+	@ag --ignore Makefile --ignore-dir vendor --ignore-dir runtime --ignore-dir webapp/non_npm_dependencies/ FIXME
+	@ag --ignore Makefile --ignore-dir vendor --ignore-dir runtime --ignore-dir webapp/non_npm_dependencies/ "FIX ME"
+ifeq ($(BUILD_ENTERPRISE_READY),true)
+	@ag --ignore Makefile --ignore-dir vendor --ignore-dir runtime --ignore-dir webapp/non_npm_dependencies/ TODO enterprise/ || true
+	@ag --ignore Makefile --ignore-dir vendor --ignore-dir runtime --ignore-dir webapp/non_npm_dependencies/ XXX enterprise/ || true
+	@ag --ignore Makefile --ignore-dir vendor --ignore-dir runtime --ignore-dir webapp/non_npm_dependencies/ FIXME enterprise/ || true
+	@ag --ignore Makefile --ignore-dir vendor --ignore-dir runtime --ignore-dir webapp/non_npm_dependencies/ "FIX ME" enterprise/ || true
+endif

@@ -4,7 +4,7 @@
 import $ from 'jquery';
 import React from 'react';
 
-import * as SyntaxHighlighting from 'utils/syntax_hightlighting.jsx';
+import * as SyntaxHighlighting from 'utils/syntax_highlighting.jsx';
 import Constants from 'utils/constants.jsx';
 
 import FileInfoPreview from './file_info_preview.jsx';
@@ -38,7 +38,7 @@ export default class CodePreview extends React.Component {
     }
 
     updateStateFromProps(props) {
-        var usedLanguage = SyntaxHighlighting.getLanguageFromFilename(props.filename);
+        const usedLanguage = SyntaxHighlighting.getLanguageFromFileExtension(props.fileInfo.extension);
 
         if (!usedLanguage || props.fileInfo.size > Constants.CODE_PREVIEW_MAX_FILE_SIZE) {
             this.setState({code: '', lang: '', loading: false, success: false});
@@ -51,21 +51,30 @@ export default class CodePreview extends React.Component {
             async: true,
             url: props.fileUrl,
             type: 'GET',
+            dataType: 'text',
             error: this.handleReceivedError,
             success: this.handleReceivedCode
         });
     }
 
     handleReceivedCode(data) {
-        this.setState({code: data, loading: false, success: true});
+        let code = data;
+        if (data.nodeName === '#document') {
+            code = new XMLSerializer().serializeToString(data);
+        }
+        this.setState({
+            code,
+            loading: false,
+            success: true
+        });
     }
 
     handleReceivedError() {
         this.setState({loading: false, success: false});
     }
 
-    static support(filename) {
-        return !!SyntaxHighlighting.getLanguageFromFilename(filename);
+    static supports(fileInfo) {
+        return Boolean(SyntaxHighlighting.getLanguageFromFileExtension(fileInfo.extension));
     }
 
     render() {
@@ -83,10 +92,8 @@ export default class CodePreview extends React.Component {
         if (!this.state.success) {
             return (
                 <FileInfoPreview
-                    filename={this.props.filename}
-                    fileUrl={this.props.fileUrl}
                     fileInfo={this.props.fileInfo}
-                    formatMessage={this.props.formatMessage}
+                    fileUrl={this.props.fileUrl}
                 />
             );
         }
@@ -106,12 +113,10 @@ export default class CodePreview extends React.Component {
 
         const highlighted = SyntaxHighlighting.highlight(this.state.lang, this.state.code);
 
-        const fileName = this.props.filename.substring(this.props.filename.lastIndexOf('/') + 1, this.props.filename.length);
-
         return (
             <div className='post-code'>
                 <span className='post-code__language'>
-                    {`${fileName} - ${language}`}
+                    {`${this.props.fileInfo.name} - ${language}`}
                 </span>
                 <code className='hljs'>
                     <table>
@@ -129,8 +134,6 @@ export default class CodePreview extends React.Component {
 }
 
 CodePreview.propTypes = {
-    filename: React.PropTypes.string.isRequired,
-    fileUrl: React.PropTypes.string.isRequired,
     fileInfo: React.PropTypes.object.isRequired,
-    formatMessage: React.PropTypes.func.isRequired
+    fileUrl: React.PropTypes.string.isRequired
 };

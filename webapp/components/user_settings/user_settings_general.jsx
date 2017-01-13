@@ -15,6 +15,7 @@ import * as AsyncClient from 'utils/async_client.jsx';
 import * as Utils from 'utils/utils.jsx';
 
 import {intlShape, injectIntl, defineMessages, FormattedMessage, FormattedHTMLMessage, FormattedDate} from 'react-intl';
+import {updateUser} from 'actions/user_actions.jsx';
 
 const holders = defineMessages({
     usernameReserved: {
@@ -68,6 +69,10 @@ const holders = defineMessages({
     close: {
         id: 'user.settings.general.close',
         defaultMessage: 'Close'
+    },
+    position: {
+        id: 'user.settings.general.position',
+        defaultMessage: 'Position'
     }
 });
 
@@ -84,6 +89,7 @@ class UserSettingsGeneralTab extends React.Component {
         this.submitEmail = this.submitEmail.bind(this);
         this.submitUser = this.submitUser.bind(this);
         this.submitPicture = this.submitPicture.bind(this);
+        this.submitPosition = this.submitPosition.bind(this);
 
         this.updateUsername = this.updateUsername.bind(this);
         this.updateFirstName = this.updateFirstName.bind(this);
@@ -93,9 +99,9 @@ class UserSettingsGeneralTab extends React.Component {
         this.updateConfirmEmail = this.updateConfirmEmail.bind(this);
         this.updatePicture = this.updatePicture.bind(this);
         this.updateSection = this.updateSection.bind(this);
+        this.updatePosition = this.updatePosition.bind(this);
 
         this.state = this.setupInitialState(props);
-        this.setState({maxFileSize: global.window.mm_config.MaxFileSize});
     }
 
     submitUsername(e) {
@@ -187,7 +193,7 @@ class UserSettingsGeneralTab extends React.Component {
     }
 
     submitUser(user, type, emailUpdated) {
-        Client.updateUser(user, type,
+        updateUser(user, type,
             () => {
                 this.updateSection('');
                 AsyncClient.getMe();
@@ -249,6 +255,22 @@ class UserSettingsGeneralTab extends React.Component {
         );
     }
 
+    submitPosition(e) {
+        e.preventDefault();
+
+        const user = Object.assign({}, this.props.user);
+        const position = this.state.position.trim();
+
+        if (user.position === position) {
+            this.updateSection('');
+            return;
+        }
+
+        user.position = position;
+
+        this.submitUser(user, Constants.UserUpdateEvents.Position, false);
+    }
+
     updateUsername(e) {
         this.setState({username: e.target.value});
     }
@@ -263,6 +285,10 @@ class UserSettingsGeneralTab extends React.Component {
 
     updateNickname(e) {
         this.setState({nickname: e.target.value});
+    }
+
+    updatePosition(e) {
+        this.setState({position: e.target.value});
     }
 
     updateEmail(e) {
@@ -302,11 +328,13 @@ class UserSettingsGeneralTab extends React.Component {
             firstName: user.first_name,
             lastName: user.last_name,
             nickname: user.nickname,
+            position: user.position,
             email: user.email,
             confirmEmail: '',
             picture: null,
             loadingPicture: false,
-            emailChangeInProgress: false
+            emailChangeInProgress: false,
+            maxFileSize: global.window.mm_config.MaxFileSize
         };
     }
 
@@ -461,7 +489,7 @@ class UserSettingsGeneralTab extends React.Component {
                 inputs.push(
                     <div
                         key='oauthEmailInfo'
-                        className='form-group'
+                        className='padding-bottom'
                     >
                         <div className='setting-list__hint'>
                             <FormattedMessage
@@ -479,7 +507,7 @@ class UserSettingsGeneralTab extends React.Component {
                 inputs.push(
                     <div
                         key='oauthEmailInfo'
-                        className='form-group'
+                        className='padding-bottom'
                     >
                         <div className='setting-list__hint'>
                             <FormattedMessage
@@ -935,6 +963,99 @@ class UserSettingsGeneralTab extends React.Component {
             );
         }
 
+        let positionSection;
+        if (this.props.activeSection === 'position') {
+            let extraInfo;
+            let submit = null;
+            if ((this.props.user.auth_service === 'ldap' || this.props.user.auth_service === Constants.SAML_SERVICE) && global.window.mm_config.PositionAttributeSet === 'true') {
+                extraInfo = (
+                    <span>
+                        <FormattedMessage
+                            id='user.settings.general.field_handled_externally'
+                            defaultMessage='This field is handled through your login provider. If you want to change it, you need to do so though your login provider.'
+                        />
+                    </span>
+                );
+            } else {
+                let positionLabel = (
+                    <FormattedMessage
+                        id='user.settings.general.position'
+                        defaultMessage='Position'
+                    />
+                );
+                if (Utils.isMobile()) {
+                    positionLabel = '';
+                }
+
+                inputs.push(
+                    <div
+                        key='positionSetting'
+                        className='form-group'
+                    >
+                        <label className='col-sm-5 control-label'>{positionLabel}</label>
+                        <div className='col-sm-7'>
+                            <input
+                                className='form-control'
+                                type='text'
+                                onChange={this.updatePosition}
+                                value={this.state.position}
+                                maxLength={Constants.MAX_POSITION_LENGTH}
+                                autoCapitalize='off'
+                            />
+                        </div>
+                    </div>
+                );
+
+                extraInfo = (
+                    <span>
+                        <FormattedMessage
+                            id='user.settings.general.positionExtra'
+                            defaultMessage='Use Position for your role or job title. This will be shown in your profile popover.'
+                        />
+                    </span>
+                );
+
+                submit = this.submitPosition;
+            }
+
+            positionSection = (
+                <SettingItemMax
+                    title={formatMessage(holders.position)}
+                    inputs={inputs}
+                    submit={submit}
+                    server_error={serverError}
+                    client_error={clientError}
+                    updateSection={(e) => {
+                        this.updateSection('');
+                        e.preventDefault();
+                    }}
+                    extraInfo={extraInfo}
+                />
+            );
+        } else {
+            let describe = '';
+            if (user.position) {
+                describe = user.position;
+            } else {
+                describe = (
+                    <FormattedMessage
+                        id='user.settings.general.emptyPosition'
+                        defaultMessage="Click 'Edit' to add your job title / position"
+                    />
+                );
+            }
+
+            positionSection = (
+                <SettingItemMin
+                    title={formatMessage(holders.position)}
+                    describe={describe}
+                    updateSection={() => {
+                        this.updateSection('position');
+                    }}
+                />
+            );
+        }
+
         const emailSection = this.createEmailSection();
 
         let pictureSection;
@@ -1028,6 +1149,8 @@ class UserSettingsGeneralTab extends React.Component {
                     {usernameSection}
                     <div className='divider-light'/>
                     {nicknameSection}
+                    <div className='divider-light'/>
+                    {positionSection}
                     <div className='divider-light'/>
                     {emailSection}
                     <div className='divider-light'/>

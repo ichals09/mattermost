@@ -18,6 +18,10 @@
         }
     }
 
+    .Select-value-label {
+        white-space: nowrap;
+    }
+
     .inner-wrap {
         position: absolute;
         width: 100%;
@@ -56,12 +60,16 @@
         &.btn-spacing--right {
             margin-right: 10px;
         }
+
+        .fa {
+            margin-right: 5px;
+        }
     }
 
     .log__panel {
         background-color: white;
         border: 1px solid #ddd;
-        height: 800px;
+        height: calc(100vh - 200px);
         margin-top: 10px;
         overflow: scroll;
         padding: 5px;
@@ -172,10 +180,6 @@
             margin-bottom: 0.5em;
         }
 
-        .banner__content {
-            width: 80%;
-        }
-
         &.warning {
             background: #e60000;
         }
@@ -239,17 +243,38 @@
         }
     }
 
+    .more-modal__list {
+        .filtered-user-list {
+            .filter-controls {
+                padding-bottom: 1em;
+            }
+        }
+
+        .filter-row {
+            margin: 10px 0;
+        }
+    }
+
     .member-list-holder {
         background: $white;
         margin-bottom: 4em;
         overflow: visible;
         padding: 5px 0;
 
+        .more-modal__list {
+            overflow: visible;
+        }
+
         .more-modal__row {
             &:last-child {
                 border: none;
             }
         }
+    }
+
+    .member-count {
+        @include opacity(.7);
+        margin-top: 8px;
     }
 }
 
@@ -273,8 +298,10 @@
     z-index: 5;
 
     .dropdown-menu {
+        max-height: 80vh;
         max-width: 200px;
         min-width: 200px;
+        overflow: auto;
     }
 
     .team__header {
@@ -441,14 +468,13 @@
 }
 
 .cluster-status {
-    width: 24px;
     height: 24px;
+    width: 24px;
 }
 
 .config-hash {
-    width: 130px;
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 130px;
 }
-

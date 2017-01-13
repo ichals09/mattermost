@@ -1,27 +1,20 @@
 // Copyright (c) 2015 Mattermost, Inc. All Rights Reserved.
 // See License.txt for license information.
 
+import ProfilePopover from './profile_popover.jsx';
 import * as Utils from 'utils/utils.jsx';
 import Client from 'client/web_client.jsx';
-import UserStore from 'stores/user_store.jsx';
 
-import {Popover, OverlayTrigger} from 'react-bootstrap';
-
-var id = 0;
-
-function nextId() {
-    id = id + 1;
-    return id;
-}
+import {OverlayTrigger} from 'react-bootstrap';
 
 import React from 'react';
 
 export default class UserProfile extends React.Component {
     constructor(props) {
         super(props);
-        this.uniqueId = nextId();
-    }
 
+        this.hideProfilePopover = this.hideProfilePopover.bind(this);
+    }
     shouldComponentUpdate(nextProps) {
         if (!Utils.areObjectsEqual(nextProps.user, this.props.user)) {
             return true;
@@ -43,89 +36,51 @@ export default class UserProfile extends React.Component {
             return true;
         }
 
+        if (nextProps.status !== this.props.status) {
+            return true;
+        }
+
+        if (nextProps.isBusy !== this.props.isBusy) {
+            return true;
+        }
+
         return false;
+    }
+
+    hideProfilePopover() {
+        this.refs.overlay.hide();
     }
 
     render() {
         let name = '...';
-        let email = '';
         let profileImg = '';
         if (this.props.user) {
             name = Utils.displayUsername(this.props.user.id);
-            email = this.props.user.email;
-            profileImg = Client.getUsersRoute() + '/' + this.props.user.id + '/image?time=' + this.props.user.update_at;
+            profileImg = Client.getUsersRoute() + '/' + this.props.user.id + '/image?time=' + this.props.user.last_picture_update;
         }
 
         if (this.props.overwriteName) {
             name = this.props.overwriteName;
         }
 
-        if (this.props.overwriteImage) {
-            profileImg = this.props.overwriteImage;
-        }
-
         if (this.props.disablePopover) {
             return <div className='user-popover'>{name}</div>;
         }
 
-        var dataContent = [];
-        dataContent.push(
-            <img
-                className='user-popover__image'
-                src={profileImg}
-                height='128'
-                width='128'
-                key='user-popover-image'
-            />
-        );
-
-        let fullname = Utils.getFullName(this.props.user);
-        if (fullname) {
-            dataContent.push(
-                <div
-                    data-toggle='tooltip'
-                    title={fullname}
-                    key='user-popover-fullname'
-                >
-
-                    <p
-                        className='text-nowrap'
-                    >
-                        {fullname}
-                    </p>
-                </div>
-            );
-        }
-
-        if (global.window.mm_config.ShowEmailAddress === 'true' || UserStore.isSystemAdminForCurrentUser() || this.props.user === UserStore.getCurrentUser()) {
-            dataContent.push(
-                <div
-                    data-toggle='tooltip'
-                    title={email}
-                    key='user-popover-email'
-                >
-                    <a
-                        href={'mailto:' + email}
-                        className='text-nowrap text-lowercase user-popover__email'
-                    >
-                        {email}
-                    </a>
-                </div>
-            );
-        }
-
         return (
             <OverlayTrigger
+                ref='overlay'
                 trigger='click'
                 placement='right'
                 rootClose={true}
                 overlay={
-                    <Popover
-                        title={'@' + this.props.user.username}
-                        id='user-profile-popover'
-                    >
-                        {dataContent}
-                    </Popover>
+                    <ProfilePopover
+                        user={this.props.user}
+                        src={profileImg}
+                        status={this.props.status}
+                        isBusy={this.props.isBusy}
+                        hide={this.hideProfilePopover}
+                    />
                 }
             >
                 <div
@@ -150,5 +105,7 @@ UserProfile.propTypes = {
     overwriteName: React.PropTypes.string,
     overwriteImage: React.PropTypes.string,
     disablePopover: React.PropTypes.bool,
-    displayNameType: React.PropTypes.string
+    displayNameType: React.PropTypes.string,
+    status: React.PropTypes.string,
+    isBusy: React.PropTypes.bool
 };

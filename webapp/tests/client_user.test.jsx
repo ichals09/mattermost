@@ -36,6 +36,36 @@ describe('Client.User', function() {
         });
     });
 
+    it('getByUsername', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().getByUsername(
+                TestHelper.basicUser().username,
+                function(data) {
+                    assert.equal(data.username, TestHelper.basicUser().username);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('getByEmail', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().getByEmail(
+                TestHelper.basicUser().email,
+                function(data) {
+                    assert.equal(data.email, TestHelper.basicUser().email);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
     it('getInitialLoad', function(done) {
         TestHelper.initBasic(() => {
             TestHelper.basicClient().getInitialLoad(
@@ -211,17 +241,32 @@ describe('Client.User', function() {
         });
     });
 
-    it('updateRoles', function(done) {
+    it('updateUserRoles', function(done) {
         TestHelper.initBasic(() => {
             var user = TestHelper.basicUser();
-            var team = TestHelper.basicTeam();
 
-            TestHelper.basicClient().updateRoles(
-                team.id,
+            TestHelper.basicClient().updateUserRoles(
                 user.id,
                 '',
+                function() {
+                    done(new Error('Not supposed to work'));
+                },
+                function() {
+                    done();
+                }
+            );
+        });
+    });
+
+    it('updateActive', function(done) {
+        TestHelper.initBasic(() => {
+            const user = TestHelper.basicUser();
+
+            TestHelper.basicClient().updateActive(
+                user.id,
+                false,
                 function(data) {
-                    assert.equal(data.user_id, user.id);
+                    assert.ok(data.delete_at > 0);
                     done();
                 },
                 function(err) {
@@ -230,25 +275,6 @@ describe('Client.User', function() {
             );
         });
     });
-
-    /* TODO: FIX THIS TEST
-    it('updateActive', function(done) {
-        TestHelper.initBasic(() => {
-            var user = TestHelper.basicUser();
-
-            TestHelper.basicClient().updateActive(
-                user.id,
-                false,
-                function(data) {
-                    assert.equal(data.last_activity_at > 0, true);
-                    done();
-                },
-                function(err) {
-                    done(new Error(err.message));
-                }
-            );
-        });
-        });*/
 
     it('sendPasswordReset', function(done) {
         TestHelper.initBasic(() => {
@@ -294,6 +320,7 @@ describe('Client.User', function() {
             TestHelper.basicClient().emailToOAuth(
                 user.email,
                 'new_password',
+                '',
                 'gitlab',
                 function() {
                     throw Error('shouldnt work');
@@ -333,6 +360,7 @@ describe('Client.User', function() {
             TestHelper.basicClient().emailToLdap(
                 user.email,
                 user.password,
+                '',
                 'unknown_id',
                 'unknown_pwd',
                 function() {
@@ -353,6 +381,7 @@ describe('Client.User', function() {
             TestHelper.basicClient().ldapToEmail(
                 user.email,
                 'new_password',
+                '',
                 'new_password',
                 function() {
                     throw Error('shouldnt work');
@@ -389,6 +418,19 @@ describe('Client.User', function() {
                 },
                 function(err) {
                     done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('generateMfaSecret', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().generateMfaSecret(
+                function() {
+                    done(new Error('not enabled'));
+                },
+                function() {
+                    done();
                 }
             );
         });
@@ -447,52 +489,11 @@ describe('Client.User', function() {
         });
     });
 
-    it('getDirectProfiles', function(done) {
-        TestHelper.initBasic(() => {
-            TestHelper.basicClient().getDirectProfiles(
-                function(data) {
-                    assert.equal(Object.keys(data).length === 0, true);
-                    done();
-                },
-                function(err) {
-                    done(new Error(err.getDirectProfiles));
-                }
-            );
-        });
-    });
-
     it('getProfiles', function(done) {
         TestHelper.initBasic(() => {
             TestHelper.basicClient().getProfiles(
-                function(data) {
-                    assert.equal(data[TestHelper.basicUser().id].id, TestHelper.basicUser().id);
-                    done();
-                },
-                function(err) {
-                    done(new Error(err.message));
-                }
-            );
-        });
-    });
-
-    it('getProfilesForTeam', function(done) {
-        TestHelper.initBasic(() => {
-            TestHelper.basicClient().getProfilesForTeam(
-                TestHelper.basicTeam().id,
-                function(data) {
-                    assert.equal(data[TestHelper.basicUser().id].id, TestHelper.basicUser().id);
-                    done();
-                },
-                function(err) {
-                    done(new Error(err.message));
-                }
-            );
-        });
-    });
-
-    it('getProfilesForDirectMessageList', function(done) {
-        TestHelper.initBasic(() => {
-            TestHelper.basicClient().getProfilesForDirectMessageList(
+                0,
+                100,
                 function(data) {
                     assert.equal(Object.keys(data).length > 0, true);
                     done();
@@ -504,16 +505,14 @@ describe('Client.User', function() {
         });
     });
 
-    /* TODO: FIX THIS TEST
-    it('getStatuses', function(done) {
+    it('getProfilesInTeam', function(done) {
         TestHelper.initBasic(() => {
-            var ids = [];
-            ids.push(TestHelper.basicUser().id);
-
-            TestHelper.basicClient().getStatuses(
-                ids,
+            TestHelper.basicClient().getProfilesInTeam(
+                TestHelper.basicTeam().id,
+                0,
+                100,
                 function(data) {
-                    assert.equal(data[TestHelper.basicUser().id], 'online');
+                    assert.equal(data[TestHelper.basicUser().id].id, TestHelper.basicUser().id);
                     done();
                 },
                 function(err) {
@@ -522,7 +521,136 @@ describe('Client.User', function() {
             );
         });
     });
-    */
+
+    it('getProfilesByIds', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().getProfilesByIds(
+                [TestHelper.basicUser().id],
+                function(data) {
+                    assert.equal(data[TestHelper.basicUser().id].id, TestHelper.basicUser().id);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('getProfilesInChannel', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().getProfilesInChannel(
+                TestHelper.basicChannel().id,
+                0,
+                100,
+                function(data) {
+                    assert.equal(Object.keys(data).length > 0, true);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('getProfilesNotInChannel', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().getProfilesNotInChannel(
+                TestHelper.basicChannel().id,
+                0,
+                100,
+                function(data) {
+                    assert.equal(Object.keys(data).length > 0, false);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('searchUsers', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().searchUsers(
+                'uid',
+                TestHelper.basicTeam().id,
+                {},
+                function(data) {
+                    assert.equal(data.length > 0, true);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('autocompleteUsersInChannel', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().autocompleteUsersInChannel(
+                'uid',
+                TestHelper.basicChannel().id,
+                function(data) {
+                    assert.equal(data != null, true);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('autocompleteUsersInTeam', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().autocompleteUsersInTeam(
+                'uid',
+                function(data) {
+                    assert.equal(data != null, true);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('autocompleteUsers', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().autocompleteUsers(
+                'uid',
+                function(data) {
+                    assert.equal(data != null, true);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('getStatusesByIds', function(done) {
+        TestHelper.initBasic(() => {
+            var ids = [];
+            ids.push(TestHelper.basicUser().id);
+
+            TestHelper.basicClient().getStatusesByIds(
+                ids,
+                function(data) {
+                    assert.equal(data[TestHelper.basicUser().id] != null, true);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
 
     it('setActiveChannel', function(done) {
         TestHelper.initBasic(() => {

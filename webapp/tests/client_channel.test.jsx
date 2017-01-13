@@ -25,25 +25,16 @@ describe('Client.Channels', function() {
         });
     });
 
-    /* TODO: FIX THIS TEST
     it('createDirectChannel', function(done) {
         TestHelper.initBasic(() => {
             TestHelper.basicClient().createUser(
                 TestHelper.fakeUser(),
                 function(user2) {
-                    TestHelper.basicClient().addUserToTeam(
+                    TestHelper.basicClient().createDirectChannel(
                         user2.id,
-                        function() {
-                            TestHelper.basicClient().createDirectChannel(
-                                user2.id,
-                                function(data) {
-                                    assert.equal(data.id.length > 0, true);
-                                    done();
-                                },
-                                function(err) {
-                                    done(new Error(err.message));
-                                }
-                            );
+                        function(data) {
+                            assert.equal(data.id.length > 0, true);
+                            done();
                         },
                         function(err) {
                             done(new Error(err.message));
@@ -56,7 +47,6 @@ describe('Client.Channels', function() {
             );
         });
     });
-    */
 
     it('updateChannel', function(done) {
         TestHelper.initBasic(() => {
@@ -211,6 +201,23 @@ describe('Client.Channels', function() {
         });
     });
 
+    it('viewChannel', function(done) {
+        TestHelper.initBasic(() => {
+            var channel = TestHelper.basicChannel();
+            TestHelper.basicClient().viewChannel(
+                channel.id,
+                '',
+                0,
+                function() {
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
     it('updateLastViewedAt', function(done) {
         TestHelper.initBasic(() => {
             var channel = TestHelper.basicChannel();
@@ -232,7 +239,7 @@ describe('Client.Channels', function() {
         TestHelper.initBasic(() => {
             TestHelper.basicClient().getChannels(
                 function(data) {
-                    assert.equal(data.channels.length, 3);
+                    assert.equal(data.length, 3);
                     done();
                 },
                 function(err) {
@@ -261,7 +268,53 @@ describe('Client.Channels', function() {
         TestHelper.initBasic(() => {
             TestHelper.basicClient().getMoreChannels(
                 function(data) {
-                    assert.equal(data.channels.length, 0);
+                    assert.equal(data.length, 0);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('getMoreChannelsPage', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().getMoreChannelsPage(
+                0,
+                100,
+                function(data) {
+                    assert.equal(data.length, 0);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('searchMoreChannels', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().searchMoreChannels(
+                'blargh',
+                function(data) {
+                    assert.equal(data.length, 0);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('autocompleteChannels', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().autocompleteChannels(
+                TestHelper.basicChannel().name,
+                function(data) {
+                    assert.equal(data != null, true);
                     done();
                 },
                 function(err) {
@@ -285,11 +338,24 @@ describe('Client.Channels', function() {
         });
     });
 
-    it('getChannelExtraInfo', function(done) {
+    it('getMyChannelMembers', function(done) {
         TestHelper.initBasic(() => {
-            TestHelper.basicClient().getChannelExtraInfo(
+            TestHelper.basicClient().getMyChannelMembers(
+                function(data) {
+                    assert.equal(data.length > 0, true);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('getChannelStats', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().getChannelStats(
                 TestHelper.basicChannel().id,
-                5,
                 function(data) {
                     assert.equal(data.member_count, 1);
                     done();
@@ -301,26 +367,37 @@ describe('Client.Channels', function() {
         });
     });
 
-    /* TODO FIX THIS TEST
+    it('getChannelMember', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().getChannelMember(
+                TestHelper.basicChannel().id,
+                TestHelper.basicUser().id,
+                function(data) {
+                    assert.equal(data.channel_id, TestHelper.basicChannel().id);
+                    assert.equal(data.user_id, TestHelper.basicUser().id);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
     it('addChannelMember', function(done) {
         TestHelper.initBasic(() => {
-            TestHelper.basicClient().createUser(
+            TestHelper.basicClient().createUserWithInvite(
                 TestHelper.fakeUser(),
+                null,
+                null,
+                TestHelper.basicTeam().invite_id,
                 function(user2) {
-                    TestHelper.basicClient().addUserToTeam(
+                    TestHelper.basicClient().addChannelMember(
+                        TestHelper.basicChannel().id,
                         user2.id,
-                        function() {
-                            TestHelper.basicClient().addChannelMember(
-                                TestHelper.basicChannel().id,
-                                user2.id,
-                                function(data) {
-                                    assert.equal(data.channel_id.length > 0, true);
-                                    done();
-                                },
-                                function(err) {
-                                    done(new Error(err.message));
-                                }
-                            );
+                        function(data) {
+                            assert.equal(data.channel_id.length > 0, true);
+                            done();
                         },
                         function(err) {
                             done(new Error(err.message));
@@ -333,7 +410,6 @@ describe('Client.Channels', function() {
             );
         });
     });
-    */
 
     it('removeChannelMember', function(done) {
         TestHelper.initBasic(() => {
@@ -342,6 +418,21 @@ describe('Client.Channels', function() {
                 TestHelper.basicUser().id,
                 function(data) {
                     assert.equal(data.channel_id.length > 0, true);
+                    done();
+                },
+                function(err) {
+                    done(new Error(err.message));
+                }
+            );
+        });
+    });
+
+    it('getChannelByName', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().getChannelByName(
+                TestHelper.basicChannel().name,
+                function(data) {
+                    assert.equal(data.name, TestHelper.basicChannel().name);
                     done();
                 },
                 function(err) {

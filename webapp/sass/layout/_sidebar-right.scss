@@ -8,7 +8,11 @@
     position: fixed;
     right: 0;
     width: 400px;
-    z-index: 5;
+    z-index: 6;
+
+    &.webrtc {
+        z-index: 5;
+    }
 
     .sidebar--right__bg {
         @include single-transition(background-color, .5s, ease);
@@ -20,7 +24,8 @@
         width: 300%;
     }
 
-    &.move--left {
+    &.move--left,
+    &.webrtc--show {
         .sidebar--right__bg {
             left: -100%;
         }
@@ -54,6 +59,24 @@
         form {
             padding: .5em 15px 0;
         }
+
+        .post-create-footer {
+            @include clearfix;
+            font-size: 13px;
+            overflow: visible;
+            position: relative;
+            clear: both;
+
+            .post-error {
+                font-weight: normal;
+                margin-bottom: 0;
+                display: inline-block;
+                font-size: .85em;
+                @include opacity(.55);
+                position: absolute;
+                top: -25px;
+          }
+       }
     }
 
     .help__format-text {

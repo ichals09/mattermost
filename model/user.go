@@ -37,6 +37,7 @@ type User struct {
 	Nickname           string    `json:"nickname"`
 	FirstName          string    `json:"first_name"`
 	LastName           string    `json:"last_name"`
+	Position           string    `json:"position"`
 	Roles              string    `json:"roles"`
 	AllowMarketing     bool      `json:"allow_marketing,omitempty"`
 	Props              StringMap `json:"props,omitempty"`
@@ -76,6 +77,10 @@ func (u *User) IsValid() *AppError {
 
 	if utf8.RuneCountInString(u.Nickname) > 64 {
 		return NewLocAppError("User.IsValid", "model.user.is_valid.nickname.app_error", nil, "user_id="+u.Id)
+	}
+
+	if utf8.RuneCountInString(u.Position) > 35 {
+		return NewLocAppError("User.IsValid", "model.user.is_valid.position.app_error", nil, "user_id="+u.Id)
 	}
 
 	if utf8.RuneCountInString(u.FirstName) > 64 {
@@ -232,14 +237,15 @@ func (u *User) Sanitize(options map[string]bool) {
 	if len(options) != 0 && !options["passwordupdate"] {
 		u.LastPasswordUpdate = 0
 	}
+	if len(options) != 0 && !options["authservice"] {
+		u.AuthService = ""
+	}
 }
 
 func (u *User) ClearNonProfileFields() {
 	u.Password = ""
 	u.AuthData = new(string)
 	*u.AuthData = ""
-	u.AuthService = ""
-	u.MfaActive = false
 	u.MfaSecret = ""
 	u.EmailVerified = false
 	u.AllowMarketing = false
@@ -336,6 +342,11 @@ func IsValidUserRoles(userRoles string) bool {
 		}
 	}
 
+	// Exclude just the system_admin role explicitly to prevent mistakes
+	if len(roles) == 1 && roles[0] == "system_admin" {
+		return false
+	}
+
 	return true
 }
 
@@ -403,6 +414,26 @@ func UserMapToJson(u map[string]*User) string {
 func UserMapFromJson(data io.Reader) map[string]*User {
 	decoder := json.NewDecoder(data)
 	var users map[string]*User
+	err := decoder.Decode(&users)
+	if err == nil {
+		return users
+	} else {
+		return nil
+	}
+}
+
+func UserListToJson(u []*User) string {
+	b, err := json.Marshal(u)
+	if err != nil {
+		return ""
+	} else {
+		return string(b)
+	}
+}
+
+func UserListFromJson(data io.Reader) []*User {
+	decoder := json.NewDecoder(data)
+	var users []*User
 	err := decoder.Decode(&users)
 	if err == nil {
 		return users

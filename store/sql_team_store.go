@@ -5,6 +5,7 @@ package store
 
 import (
 	"database/sql"
+	"strconv"
 
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
@@ -26,6 +27,7 @@ func NewSqlTeamStore(sqlStore *SqlStore) TeamStore {
 		table.ColMap("Id").SetMaxSize(26)
 		table.ColMap("DisplayName").SetMaxSize(64)
 		table.ColMap("Name").SetMaxSize(64).SetUnique(true)
+		table.ColMap("Description").SetMaxSize(255)
 		table.ColMap("Email").SetMaxSize(128)
 		table.ColMap("CompanyName").SetMaxSize(64)
 		table.ColMap("AllowedDomains").SetMaxSize(500)
@@ -42,14 +44,19 @@ func NewSqlTeamStore(sqlStore *SqlStore) TeamStore {
 
 func (s SqlTeamStore) CreateIndexesIfNotExists() {
 	s.CreateIndexIfNotExists("idx_teams_name", "Teams", "Name")
+	s.CreateIndexIfNotExists("idx_teams_description", "Teams", "Description")
 	s.CreateIndexIfNotExists("idx_teams_invite_id", "Teams", "InviteId")
+	s.CreateIndexIfNotExists("idx_teams_update_at", "Teams", "UpdateAt")
+	s.CreateIndexIfNotExists("idx_teams_create_at", "Teams", "CreateAt")
+	s.CreateIndexIfNotExists("idx_teams_delete_at", "Teams", "DeleteAt")
 
 	s.CreateIndexIfNotExists("idx_teammembers_team_id", "TeamMembers", "TeamId")
 	s.CreateIndexIfNotExists("idx_teammembers_user_id", "TeamMembers", "UserId")
+	s.CreateIndexIfNotExists("idx_teammembers_delete_at", "TeamMembers", "DeleteAt")
 }
 
 func (s SqlTeamStore) Save(team *model.Team) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -64,7 +71,7 @@ func (s SqlTeamStore) Save(team *model.Team) StoreChannel {
 
 		team.PreSave()
 
-		if result.Err = team.IsValid(*utils.Cfg.TeamSettings.RestrictTeamNames); result.Err != nil {
+		if result.Err = team.IsValid(); result.Err != nil {
 			storeChannel <- result
 			close(storeChannel)
 			return
@@ -89,14 +96,14 @@ func (s SqlTeamStore) Save(team *model.Team) StoreChannel {
 
 func (s SqlTeamStore) Update(team *model.Team) StoreChannel {
 
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
 
 		team.PreUpdate()
 
-		if result.Err = team.IsValid(*utils.Cfg.TeamSettings.RestrictTeamNames); result.Err != nil {
+		if result.Err = team.IsValid(); result.Err != nil {
 			storeChannel <- result
 			close(storeChannel)
 			return
@@ -130,7 +137,7 @@ func (s SqlTeamStore) Update(team *model.Team) StoreChannel {
 
 func (s SqlTeamStore) UpdateDisplayName(name string, teamId string) StoreChannel {
 
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -149,7 +156,7 @@ func (s SqlTeamStore) UpdateDisplayName(name string, teamId string) StoreChannel
 }
 
 func (s SqlTeamStore) Get(id string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -175,7 +182,7 @@ func (s SqlTeamStore) Get(id string) StoreChannel {
 }
 
 func (s SqlTeamStore) GetByInviteId(inviteId string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -204,7 +211,7 @@ func (s SqlTeamStore) GetByInviteId(inviteId string) StoreChannel {
 }
 
 func (s SqlTeamStore) GetByName(name string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -229,7 +236,7 @@ func (s SqlTeamStore) GetByName(name string) StoreChannel {
 }
 
 func (s SqlTeamStore) GetAll() StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -255,7 +262,7 @@ func (s SqlTeamStore) GetAll() StoreChannel {
 }
 
 func (s SqlTeamStore) GetTeamsByUserId(userId string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -281,7 +288,7 @@ func (s SqlTeamStore) GetTeamsByUserId(userId string) StoreChannel {
 }
 
 func (s SqlTeamStore) GetAllTeamListing() StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -313,7 +320,7 @@ func (s SqlTeamStore) GetAllTeamListing() StoreChannel {
 }
 
 func (s SqlTeamStore) PermanentDelete(teamId string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -330,7 +337,7 @@ func (s SqlTeamStore) PermanentDelete(teamId string) StoreChannel {
 }
 
 func (s SqlTeamStore) AnalyticsTeamCount() StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -349,7 +356,7 @@ func (s SqlTeamStore) AnalyticsTeamCount() StoreChannel {
 }
 
 func (s SqlTeamStore) SaveMember(member *model.TeamMember) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -390,7 +397,7 @@ func (s SqlTeamStore) SaveMember(member *model.TeamMember) StoreChannel {
 }
 
 func (s SqlTeamStore) UpdateMember(member *model.TeamMember) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -417,7 +424,7 @@ func (s SqlTeamStore) UpdateMember(member *model.TeamMember) StoreChannel {
 }
 
 func (s SqlTeamStore) GetMember(teamId string, userId string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -441,14 +448,14 @@ func (s SqlTeamStore) GetMember(teamId string, userId string) StoreChannel {
 	return storeChannel
 }
 
-func (s SqlTeamStore) GetMembers(teamId string) StoreChannel {
-	storeChannel := make(StoreChannel)
+func (s SqlTeamStore) GetMembers(teamId string, offset int, limit int) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
 
 		var members []*model.TeamMember
-		_, err := s.GetReplica().Select(&members, "SELECT * FROM TeamMembers WHERE TeamId = :TeamId", map[string]interface{}{"TeamId": teamId})
+		_, err := s.GetReplica().Select(&members, "SELECT * FROM TeamMembers WHERE TeamId = :TeamId AND DeleteAt = 0 LIMIT :Limit OFFSET :Offset", map[string]interface{}{"TeamId": teamId, "Offset": offset, "Limit": limit})
 		if err != nil {
 			result.Err = model.NewLocAppError("SqlTeamStore.GetMembers", "store.sql_team.get_members.app_error", nil, "teamId="+teamId+" "+err.Error())
 		} else {
@@ -462,8 +469,101 @@ func (s SqlTeamStore) GetMembers(teamId string) StoreChannel {
 	return storeChannel
 }
 
+func (s SqlTeamStore) GetTotalMemberCount(teamId string) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		count, err := s.GetReplica().SelectInt(`
+			SELECT
+				count(*)
+			FROM
+				TeamMembers,
+				Users
+			WHERE
+				TeamMembers.UserId = Users.Id
+				AND TeamMembers.TeamId = :TeamId
+				AND TeamMembers.DeleteAt = 0`, map[string]interface{}{"TeamId": teamId})
+		if err != nil {
+			result.Err = model.NewLocAppError("SqlTeamStore.GetTotalMemberCount", "store.sql_team.get_member_count.app_error", nil, "teamId="+teamId+" "+err.Error())
+		} else {
+			result.Data = count
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
+func (s SqlTeamStore) GetActiveMemberCount(teamId string) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		count, err := s.GetReplica().SelectInt(`
+			SELECT
+				count(*)
+			FROM
+				TeamMembers,
+				Users
+			WHERE
+				TeamMembers.UserId = Users.Id
+				AND TeamMembers.TeamId = :TeamId
+				AND TeamMembers.DeleteAt = 0
+				AND Users.DeleteAt = 0`, map[string]interface{}{"TeamId": teamId})
+		if err != nil {
+			result.Err = model.NewLocAppError("SqlTeamStore.GetActiveMemberCount", "store.sql_team.get_member_count.app_error", nil, "teamId="+teamId+" "+err.Error())
+		} else {
+			result.Data = count
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
+func (s SqlTeamStore) GetMembersByIds(teamId string, userIds []string) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		var members []*model.TeamMember
+		props := make(map[string]interface{})
+		idQuery := ""
+
+		for index, userId := range userIds {
+			if len(idQuery) > 0 {
+				idQuery += ", "
+			}
+
+			props["userId"+strconv.Itoa(index)] = userId
+			idQuery += ":userId" + strconv.Itoa(index)
+		}
+
+		props["TeamId"] = teamId
+
+		if _, err := s.GetReplica().Select(&members, "SELECT * FROM TeamMembers WHERE TeamId = :TeamId AND UserId IN ("+idQuery+") AND DeleteAt = 0", props); err != nil {
+			result.Err = model.NewLocAppError("SqlTeamStore.GetMembersByIds", "store.sql_team.get_members_by_ids.app_error", nil, "teamId="+teamId+" "+err.Error())
+		} else {
+			result.Data = members
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
 func (s SqlTeamStore) GetTeamsForUser(userId string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -483,8 +583,37 @@ func (s SqlTeamStore) GetTeamsForUser(userId string) StoreChannel {
 	return storeChannel
 }
 
+func (s SqlTeamStore) GetTeamsUnreadForUser(teamId, userId string) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		var data []*model.ChannelUnread
+		_, err := s.GetReplica().Select(&data,
+			`SELECT
+				Channels.TeamId, Channels.TotalMsgCount, ChannelMembers.MsgCount, ChannelMembers.MentionCount, ChannelMembers.NotifyProps
+			FROM
+				Channels, ChannelMembers
+			WHERE
+				Id = ChannelId AND UserId = :UserId AND DeleteAt = 0 AND TeamId != :TeamId`,
+			map[string]interface{}{"UserId": userId, "TeamId": teamId})
+
+		if err != nil {
+			result.Err = model.NewLocAppError("SqlTeamStore.GetTeamsUnreadForUser", "store.sql_team.get_unread.app_error", nil, "userId="+userId+" "+err.Error())
+		} else {
+			result.Data = data
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
 func (s SqlTeamStore) RemoveMember(teamId string, userId string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -502,7 +631,7 @@ func (s SqlTeamStore) RemoveMember(teamId string, userId string) StoreChannel {
 }
 
 func (s SqlTeamStore) RemoveAllMembersByTeam(teamId string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}
@@ -520,7 +649,7 @@ func (s SqlTeamStore) RemoveAllMembersByTeam(teamId string) StoreChannel {
 }
 
 func (s SqlTeamStore) RemoveAllMembersByUser(userId string) StoreChannel {
-	storeChannel := make(StoreChannel)
+	storeChannel := make(StoreChannel, 1)
 
 	go func() {
 		result := StoreResult{}

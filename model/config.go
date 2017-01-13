@@ -38,9 +38,10 @@ const (
 	DIRECT_MESSAGE_ANY  = "any"
 	DIRECT_MESSAGE_TEAM = "team"
 
-	PERMISSIONS_ALL          = "all"
-	PERMISSIONS_TEAM_ADMIN   = "team_admin"
-	PERMISSIONS_SYSTEM_ADMIN = "system_admin"
+	PERMISSIONS_ALL           = "all"
+	PERMISSIONS_CHANNEL_ADMIN = "channel_admin"
+	PERMISSIONS_TEAM_ADMIN    = "team_admin"
+	PERMISSIONS_SYSTEM_ADMIN  = "system_admin"
 
 	FAKE_SETTING = "********************************"
 
@@ -57,6 +58,14 @@ const (
 type ServiceSettings struct {
 	SiteURL                           *string
 	ListenAddress                     string
+	ConnectionSecurity                *string
+	TLSCertFile                       *string
+	TLSKeyFile                        *string
+	UseLetsEncrypt                    *bool
+	LetsEncryptCertificateCacheFile   *string
+	Forward80To443                    *bool
+	ReadTimeout                       *int
+	WriteTimeout                      *int
 	MaximumLoginAttempts              int
 	SegmentDeveloperKey               string
 	GoogleDeveloperKey                string
@@ -72,6 +81,7 @@ type ServiceSettings struct {
 	EnableSecurityFixAlert            *bool
 	EnableInsecureOutgoingConnections *bool
 	EnableMultifactorAuthentication   *bool
+	EnforceMultifactorAuthentication  *bool
 	AllowCorsFrom                     *string
 	SessionLengthWebInDays            *int
 	SessionLengthMobileInDays         *int
@@ -88,6 +98,16 @@ type ClusterSettings struct {
 	Enable                 *bool
 	InterNodeListenAddress *string
 	InterNodeUrls          []string
+}
+
+type MetricsSettings struct {
+	Enable           *bool
+	BlockProfileRate *int
+	ListenAddress    *string
+}
+
+type AnalyticsSettings struct {
+	MaxUsersForStatistics *int
 }
 
 type SSOSettings struct {
@@ -130,26 +150,24 @@ type PasswordSettings struct {
 }
 
 type FileSettings struct {
-	MaxFileSize                *int64
-	DriverName                 string
-	Directory                  string
-	EnablePublicLink           bool
-	PublicLinkSalt             *string
-	ThumbnailWidth             int
-	ThumbnailHeight            int
-	PreviewWidth               int
-	PreviewHeight              int
-	ProfileWidth               int
-	ProfileHeight              int
-	InitialFont                string
-	AmazonS3AccessKeyId        string
-	AmazonS3SecretAccessKey    string
-	AmazonS3Bucket             string
-	AmazonS3Region             string
-	AmazonS3Endpoint           string
-	AmazonS3BucketEndpoint     string
-	AmazonS3LocationConstraint *bool
-	AmazonS3LowercaseBucket    *bool
+	MaxFileSize             *int64
+	DriverName              string
+	Directory               string
+	EnablePublicLink        bool
+	PublicLinkSalt          *string
+	ThumbnailWidth          int
+	ThumbnailHeight         int
+	PreviewWidth            int
+	PreviewHeight           int
+	ProfileWidth            int
+	ProfileHeight           int
+	InitialFont             string
+	AmazonS3AccessKeyId     string
+	AmazonS3SecretAccessKey string
+	AmazonS3Bucket          string
+	AmazonS3Region          string
+	AmazonS3Endpoint        string
+	AmazonS3SSL             *bool
 }
 
 type EmailSettings struct {
@@ -177,11 +195,12 @@ type EmailSettings struct {
 }
 
 type RateLimitSettings struct {
-	EnableRateLimiter bool
-	PerSec            int
-	MemoryStoreSize   int
-	VaryByRemoteAddr  bool
-	VaryByHeader      string
+	Enable           *bool
+	PerSec           int
+	MaxBurst         *int
+	MemoryStoreSize  int
+	VaryByRemoteAddr bool
+	VaryByHeader     string
 }
 
 type PrivacySettings struct {
@@ -205,7 +224,6 @@ type TeamSettings struct {
 	EnableUserCreation               bool
 	EnableOpenServer                 *bool
 	RestrictCreationToDomains        string
-	RestrictTeamNames                *bool
 	EnableCustomBrand                *bool
 	CustomBrandText                  *string
 	CustomDescriptionText            *string
@@ -213,7 +231,13 @@ type TeamSettings struct {
 	RestrictTeamInvite               *string
 	RestrictPublicChannelManagement  *string
 	RestrictPrivateChannelManagement *string
+	RestrictPublicChannelCreation    *string
+	RestrictPrivateChannelCreation   *string
+	RestrictPublicChannelDeletion    *string
+	RestrictPrivateChannelDeletion   *string
 	UserStatusAwayTimeout            *int64
+	MaxChannelsPerTeam               *int64
+	MaxNotificationsPerChannel       *int64
 }
 
 type LdapSettings struct {
@@ -236,6 +260,7 @@ type LdapSettings struct {
 	UsernameAttribute  *string
 	NicknameAttribute  *string
 	IdAttribute        *string
+	PositionAttribute  *string
 
 	// Syncronization
 	SyncIntervalMinutes *int
@@ -282,6 +307,7 @@ type SamlSettings struct {
 	UsernameAttribute  *string
 	NicknameAttribute  *string
 	LocaleAttribute    *string
+	PositionAttribute  *string
 
 	LoginButtonText *string
 }
@@ -290,6 +316,17 @@ type NativeAppSettings struct {
 	AppDownloadLink        *string
 	AndroidAppDownloadLink *string
 	IosAppDownloadLink     *string
+}
+
+type WebrtcSettings struct {
+	Enable              *bool
+	GatewayWebsocketUrl *string
+	GatewayAdminUrl     *string
+	GatewayAdminSecret  *string
+	StunURI             *string
+	TurnURI             *string
+	TurnUsername        *string
+	TurnSharedKey       *string
 }
 
 type SampleAppSettings struct {
@@ -320,6 +357,9 @@ type Config struct {
 	SamlSettings         SamlSettings
 	NativeAppSettings    NativeAppSettings
 	ClusterSettings      ClusterSettings
+	MetricsSettings      MetricsSettings
+	AnalyticsSettings    AnalyticsSettings
+	WebrtcSettings       WebrtcSettings
 	SampleAppSettings    SampleAppSettings
 }
 
@@ -362,6 +402,21 @@ func (o *Config) SetDefaults() {
 		o.SqlSettings.AtRestEncryptKey = NewRandomString(32)
 	}
 
+	if o.FileSettings.AmazonS3Endpoint == "" {
+		// Defaults to "s3.amazonaws.com"
+		o.FileSettings.AmazonS3Endpoint = "s3.amazonaws.com"
+	}
+
+	if o.FileSettings.AmazonS3Region == "" {
+		// Defaults to "us-east-1" region.
+		o.FileSettings.AmazonS3Region = "us-east-1"
+	}
+
+	if o.FileSettings.AmazonS3SSL == nil {
+		o.FileSettings.AmazonS3SSL = new(bool)
+		*o.FileSettings.AmazonS3SSL = true // Secure by default.
+	}
+
 	if o.FileSettings.MaxFileSize == nil {
 		o.FileSettings.MaxFileSize = new(int64)
 		*o.FileSettings.MaxFileSize = 52428800 // 50 MB
@@ -372,14 +427,9 @@ func (o *Config) SetDefaults() {
 		*o.FileSettings.PublicLinkSalt = NewRandomString(32)
 	}
 
-	if o.FileSettings.AmazonS3LocationConstraint == nil {
-		o.FileSettings.AmazonS3LocationConstraint = new(bool)
-		*o.FileSettings.AmazonS3LocationConstraint = false
-	}
-
-	if o.FileSettings.AmazonS3LowercaseBucket == nil {
-		o.FileSettings.AmazonS3LowercaseBucket = new(bool)
-		*o.FileSettings.AmazonS3LowercaseBucket = false
+	if o.FileSettings.InitialFont == "" {
+		// Defaults to "luximbi.ttf"
+		o.FileSettings.InitialFont = "luximbi.ttf"
 	}
 
 	if len(o.EmailSettings.InviteSalt) == 0 {
@@ -415,6 +465,11 @@ func (o *Config) SetDefaults() {
 		*o.ServiceSettings.EnableMultifactorAuthentication = false
 	}
 
+	if o.ServiceSettings.EnforceMultifactorAuthentication == nil {
+		o.ServiceSettings.EnforceMultifactorAuthentication = new(bool)
+		*o.ServiceSettings.EnforceMultifactorAuthentication = false
+	}
+
 	if o.PasswordSettings.MinimumLength == nil {
 		o.PasswordSettings.MinimumLength = new(int)
 		*o.PasswordSettings.MinimumLength = PASSWORD_MINIMUM_LENGTH
@@ -438,11 +493,6 @@ func (o *Config) SetDefaults() {
 	if o.PasswordSettings.Symbol == nil {
 		o.PasswordSettings.Symbol = new(bool)
 		*o.PasswordSettings.Symbol = false
-	}
-
-	if o.TeamSettings.RestrictTeamNames == nil {
-		o.TeamSettings.RestrictTeamNames = new(bool)
-		*o.TeamSettings.RestrictTeamNames = true
 	}
 
 	if o.TeamSettings.EnableCustomBrand == nil {
@@ -485,9 +535,43 @@ func (o *Config) SetDefaults() {
 		*o.TeamSettings.RestrictPrivateChannelManagement = PERMISSIONS_ALL
 	}
 
+	if o.TeamSettings.RestrictPublicChannelCreation == nil {
+		o.TeamSettings.RestrictPublicChannelCreation = new(string)
+		// If this setting does not exist, assume migration from <3.6, so use management setting as default.
+		*o.TeamSettings.RestrictPublicChannelCreation = *o.TeamSettings.RestrictPublicChannelManagement
+	}
+
+	if o.TeamSettings.RestrictPrivateChannelCreation == nil {
+		o.TeamSettings.RestrictPrivateChannelCreation = new(string)
+		// If this setting does not exist, assume migration from <3.6, so use management setting as default.
+		*o.TeamSettings.RestrictPrivateChannelCreation = *o.TeamSettings.RestrictPrivateChannelManagement
+	}
+
+	if o.TeamSettings.RestrictPublicChannelDeletion == nil {
+		o.TeamSettings.RestrictPublicChannelDeletion = new(string)
+		// If this setting does not exist, assume migration from <3.6, so use management setting as default.
+		*o.TeamSettings.RestrictPublicChannelDeletion = *o.TeamSettings.RestrictPublicChannelManagement
+	}
+
+	if o.TeamSettings.RestrictPrivateChannelDeletion == nil {
+		o.TeamSettings.RestrictPrivateChannelDeletion = new(string)
+		// If this setting does not exist, assume migration from <3.6, so use management setting as default.
+		*o.TeamSettings.RestrictPrivateChannelDeletion = *o.TeamSettings.RestrictPrivateChannelManagement
+	}
+
 	if o.TeamSettings.UserStatusAwayTimeout == nil {
 		o.TeamSettings.UserStatusAwayTimeout = new(int64)
 		*o.TeamSettings.UserStatusAwayTimeout = 300
+	}
+
+	if o.TeamSettings.MaxChannelsPerTeam == nil {
+		o.TeamSettings.MaxChannelsPerTeam = new(int64)
+		*o.TeamSettings.MaxChannelsPerTeam = 2000
+	}
+
+	if o.TeamSettings.MaxNotificationsPerChannel == nil {
+		o.TeamSettings.MaxNotificationsPerChannel = new(int64)
+		*o.TeamSettings.MaxNotificationsPerChannel = 1000
 	}
 
 	if o.EmailSettings.EnableSignInWithEmail == nil {
@@ -660,6 +744,11 @@ func (o *Config) SetDefaults() {
 		*o.LdapSettings.IdAttribute = ""
 	}
 
+	if o.LdapSettings.PositionAttribute == nil {
+		o.LdapSettings.PositionAttribute = new(string)
+		*o.LdapSettings.PositionAttribute = ""
+	}
+
 	if o.LdapSettings.SyncIntervalMinutes == nil {
 		o.LdapSettings.SyncIntervalMinutes = new(int)
 		*o.LdapSettings.SyncIntervalMinutes = 60
@@ -759,6 +848,21 @@ func (o *Config) SetDefaults() {
 
 	if o.ClusterSettings.InterNodeUrls == nil {
 		o.ClusterSettings.InterNodeUrls = []string{}
+	}
+
+	if o.MetricsSettings.ListenAddress == nil {
+		o.MetricsSettings.ListenAddress = new(string)
+		*o.MetricsSettings.ListenAddress = ":8067"
+	}
+
+	if o.MetricsSettings.Enable == nil {
+		o.MetricsSettings.Enable = new(bool)
+		*o.MetricsSettings.Enable = false
+	}
+
+	if o.AnalyticsSettings.MaxUsersForStatistics == nil {
+		o.AnalyticsSettings.MaxUsersForStatistics = new(int)
+		*o.AnalyticsSettings.MaxUsersForStatistics = 2500
 	}
 
 	if o.ComplianceSettings.Enable == nil {
@@ -871,6 +975,11 @@ func (o *Config) SetDefaults() {
 		*o.SamlSettings.NicknameAttribute = ""
 	}
 
+	if o.SamlSettings.PositionAttribute == nil {
+		o.SamlSettings.PositionAttribute = new(string)
+		*o.SamlSettings.PositionAttribute = ""
+	}
+
 	if o.SamlSettings.LocaleAttribute == nil {
 		o.SamlSettings.LocaleAttribute = new(string)
 		*o.SamlSettings.LocaleAttribute = ""
@@ -890,6 +999,63 @@ func (o *Config) SetDefaults() {
 		o.NativeAppSettings.IosAppDownloadLink = new(string)
 		*o.NativeAppSettings.IosAppDownloadLink = "https://about.mattermost.com/mattermost-ios-app/"
 	}
+
+	if o.RateLimitSettings.Enable == nil {
+		o.RateLimitSettings.Enable = new(bool)
+		*o.RateLimitSettings.Enable = false
+	}
+
+	if o.RateLimitSettings.MaxBurst == nil {
+		o.RateLimitSettings.MaxBurst = new(int)
+		*o.RateLimitSettings.MaxBurst = 100
+	}
+
+	if o.ServiceSettings.ConnectionSecurity == nil {
+		o.ServiceSettings.ConnectionSecurity = new(string)
+		*o.ServiceSettings.ConnectionSecurity = ""
+	}
+
+	if o.ServiceSettings.TLSKeyFile == nil {
+		o.ServiceSettings.TLSKeyFile = new(string)
+		*o.ServiceSettings.TLSKeyFile = ""
+	}
+
+	if o.ServiceSettings.TLSCertFile == nil {
+		o.ServiceSettings.TLSCertFile = new(string)
+		*o.ServiceSettings.TLSCertFile = ""
+	}
+
+	if o.ServiceSettings.UseLetsEncrypt == nil {
+		o.ServiceSettings.UseLetsEncrypt = new(bool)
+		*o.ServiceSettings.UseLetsEncrypt = false
+	}
+
+	if o.ServiceSettings.LetsEncryptCertificateCacheFile == nil {
+		o.ServiceSettings.LetsEncryptCertificateCacheFile = new(string)
+		*o.ServiceSettings.LetsEncryptCertificateCacheFile = "./config/letsencrypt.cache"
+	}
+
+	if o.ServiceSettings.ReadTimeout == nil {
+		o.ServiceSettings.ReadTimeout = new(int)
+		*o.ServiceSettings.ReadTimeout = 300
+	}
+
+	if o.ServiceSettings.WriteTimeout == nil {
+		o.ServiceSettings.WriteTimeout = new(int)
+		*o.ServiceSettings.WriteTimeout = 300
+	}
+
+	if o.ServiceSettings.Forward80To443 == nil {
+		o.ServiceSettings.Forward80To443 = new(bool)
+		*o.ServiceSettings.Forward80To443 = false
+	}
+
+	if o.MetricsSettings.BlockProfileRate == nil {
+		o.MetricsSettings.BlockProfileRate = new(int)
+		*o.MetricsSettings.BlockProfileRate = 0
+	}
+
+	o.defaultWebrtcSettings()
 
 	if o.SampleAppSettings.Enable == nil {
 		o.SampleAppSettings.Enable = new(bool)
@@ -964,6 +1130,14 @@ func (o *Config) IsValid() *AppError {
 
 	if o.TeamSettings.MaxUsersPerTeam <= 0 {
 		return NewLocAppError("Config.IsValid", "model.config.is_valid.max_users.app_error", nil, "")
+	}
+
+	if *o.TeamSettings.MaxChannelsPerTeam <= 0 {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.max_channels.app_error", nil, "")
+	}
+
+	if *o.TeamSettings.MaxNotificationsPerChannel <= 0 {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.max_notify_per_channel.app_error", nil, "")
 	}
 
 	if !(*o.TeamSettings.RestrictDirectMessage == DIRECT_MESSAGE_ANY || *o.TeamSettings.RestrictDirectMessage == DIRECT_MESSAGE_TEAM) {
@@ -1138,6 +1312,26 @@ func (o *Config) IsValid() *AppError {
 		return NewLocAppError("Config.IsValid", "model.config.is_valid.sitename_length.app_error", map[string]interface{}{"MaxLength": SITENAME_MAX_LENGTH}, "")
 	}
 
+	if *o.RateLimitSettings.MaxBurst <= 0 {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.max_burst.app_error", nil, "")
+	}
+
+	if err := o.isValidWebrtcSettings(); err != nil {
+		return err
+	}
+
+	if !(*o.ServiceSettings.ConnectionSecurity == CONN_SECURITY_NONE || *o.ServiceSettings.ConnectionSecurity == CONN_SECURITY_TLS) {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.webserver_security.app_error", nil, "")
+	}
+
+	if *o.ServiceSettings.ReadTimeout <= 0 {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.read_timeout.app_error", nil, "")
+	}
+
+	if *o.ServiceSettings.WriteTimeout <= 0 {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.write_timeout.app_error", nil, "")
+	}
+
 	return nil
 }
 
@@ -1175,4 +1369,72 @@ func (o *Config) Sanitize() {
 	for i := range o.SqlSettings.DataSourceReplicas {
 		o.SqlSettings.DataSourceReplicas[i] = FAKE_SETTING
 	}
+}
+
+func (o *Config) defaultWebrtcSettings() {
+	if o.WebrtcSettings.Enable == nil {
+		o.WebrtcSettings.Enable = new(bool)
+		*o.WebrtcSettings.Enable = false
+	}
+
+	if o.WebrtcSettings.GatewayWebsocketUrl == nil {
+		o.WebrtcSettings.GatewayWebsocketUrl = new(string)
+		*o.WebrtcSettings.GatewayWebsocketUrl = ""
+	}
+
+	if o.WebrtcSettings.GatewayAdminUrl == nil {
+		o.WebrtcSettings.GatewayAdminUrl = new(string)
+		*o.WebrtcSettings.GatewayAdminUrl = ""
+	}
+
+	if o.WebrtcSettings.GatewayAdminSecret == nil {
+		o.WebrtcSettings.GatewayAdminSecret = new(string)
+		*o.WebrtcSettings.GatewayAdminSecret = ""
+	}
+
+	if o.WebrtcSettings.StunURI == nil {
+		o.WebrtcSettings.StunURI = new(string)
+		*o.WebrtcSettings.StunURI = ""
+	}
+
+	if o.WebrtcSettings.TurnURI == nil {
+		o.WebrtcSettings.TurnURI = new(string)
+		*o.WebrtcSettings.TurnURI = ""
+	}
+
+	if o.WebrtcSettings.TurnUsername == nil {
+		o.WebrtcSettings.TurnUsername = new(string)
+		*o.WebrtcSettings.TurnUsername = ""
+	}
+
+	if o.WebrtcSettings.TurnSharedKey == nil {
+		o.WebrtcSettings.TurnSharedKey = new(string)
+		*o.WebrtcSettings.TurnSharedKey = ""
+	}
+}
+
+func (o *Config) isValidWebrtcSettings() *AppError {
+	if *o.WebrtcSettings.Enable {
+		if len(*o.WebrtcSettings.GatewayWebsocketUrl) == 0 || !IsValidWebsocketUrl(*o.WebrtcSettings.GatewayWebsocketUrl) {
+			return NewLocAppError("Config.IsValid", "model.config.is_valid.webrtc_gateway_ws_url.app_error", nil, "")
+		} else if len(*o.WebrtcSettings.GatewayAdminUrl) == 0 || !IsValidHttpUrl(*o.WebrtcSettings.GatewayAdminUrl) {
+			return NewLocAppError("Config.IsValid", "model.config.is_valid.webrtc_gateway_admin_url.app_error", nil, "")
+		} else if len(*o.WebrtcSettings.GatewayAdminSecret) == 0 {
+			return NewLocAppError("Config.IsValid", "model.config.is_valid.webrtc_gateway_admin_secret.app_error", nil, "")
+		} else if len(*o.WebrtcSettings.StunURI) != 0 && !IsValidTurnOrStunServer(*o.WebrtcSettings.StunURI) {
+			return NewLocAppError("Config.IsValid", "model.config.is_valid.webrtc_stun_uri.app_error", nil, "")
+		} else if len(*o.WebrtcSettings.TurnURI) != 0 {
+			if !IsValidTurnOrStunServer(*o.WebrtcSettings.TurnURI) {
+				return NewLocAppError("Config.IsValid", "model.config.is_valid.webrtc_turn_uri.app_error", nil, "")
+			}
+			if len(*o.WebrtcSettings.TurnUsername) == 0 {
+				return NewLocAppError("Config.IsValid", "model.config.is_valid.webrtc_turn_username.app_error", nil, "")
+			} else if len(*o.WebrtcSettings.TurnSharedKey) == 0 {
+				return NewLocAppError("Config.IsValid", "model.config.is_valid.webrtc_turn_shared_key.app_error", nil, "")
+			}
+
+		}
+	}
+
+	return nil
 }

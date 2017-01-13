@@ -102,6 +102,7 @@ func getOAuthApps(c *Context, w http.ResponseWriter, r *http.Request) {
 	if HasPermissionToContext(c, model.PERMISSION_MANAGE_SYSTEM_WIDE_OAUTH) {
 		ochan = Srv.Store.OAuth().GetApps()
 	} else {
+		c.Err = nil
 		ochan = Srv.Store.OAuth().GetAppByUser(c.Session.UserId)
 	}
 
@@ -250,8 +251,8 @@ func getAuthorizedApps(c *Context, w http.ResponseWriter, r *http.Request) {
 
 func RevokeAccessToken(token string) *model.AppError {
 
+	session := GetSession(token)
 	schan := Srv.Store.Session().Remove(token)
-	sessionCache.Remove(token)
 
 	if result := <-Srv.Store.OAuth().GetAccessData(token); result.Err != nil {
 		return model.NewLocAppError("RevokeAccessToken", "api.oauth.revoke_access_token.get.app_error", nil, "")
@@ -265,6 +266,10 @@ func RevokeAccessToken(token string) *model.AppError {
 
 	if result := <-schan; result.Err != nil {
 		return model.NewLocAppError("RevokeAccessToken", "api.oauth.revoke_access_token.del_session.app_error", nil, "")
+	}
+
+	if session != nil {
+		RemoveAllSessionsForUserId(session.UserId)
 	}
 
 	return nil
@@ -851,7 +856,7 @@ func CompleteSwitchWithOAuth(c *Context, w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	if result := <-Srv.Store.User().UpdateAuthData(user.Id, service, &authData, ssoEmail); result.Err != nil {
+	if result := <-Srv.Store.User().UpdateAuthData(user.Id, service, &authData, ssoEmail, true); result.Err != nil {
 		c.Err = result.Err
 		return
 	}

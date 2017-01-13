@@ -20,7 +20,7 @@ import (
 type CommandProvider interface {
 	GetTrigger() string
 	GetCommand(c *Context) *model.Command
-	DoCommand(c *Context, channelId string, message string) *model.CommandResponse
+	DoCommand(c *Context, args *model.CommandArgs, message string) *model.CommandResponse
 }
 
 var commandProviders = make(map[string]CommandProvider)
@@ -45,6 +45,7 @@ func InitCommand() {
 	BaseRoutes.Commands.Handle("/list", ApiUserRequired(listCommands)).Methods("GET")
 
 	BaseRoutes.Commands.Handle("/create", ApiUserRequired(createCommand)).Methods("POST")
+	BaseRoutes.Commands.Handle("/update", ApiUserRequired(updateCommand)).Methods("POST")
 	BaseRoutes.Commands.Handle("/list_team_commands", ApiUserRequired(listTeamCommands)).Methods("GET")
 	BaseRoutes.Commands.Handle("/regen_token", ApiUserRequired(regenCommandToken)).Methods("POST")
 	BaseRoutes.Commands.Handle("/delete", ApiUserRequired(deleteCommand)).Methods("POST")
@@ -87,30 +88,28 @@ func listCommands(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func executeCommand(c *Context, w http.ResponseWriter, r *http.Request) {
-	props := model.MapFromJson(r.Body)
-	command := strings.TrimSpace(props["command"])
-	channelId := strings.TrimSpace(props["channelId"])
+	commandArgs := model.CommandArgsFromJson(r.Body)
 
-	if len(command) <= 1 || strings.Index(command, "/") != 0 {
+	if len(commandArgs.Command) <= 1 || strings.Index(commandArgs.Command, "/") != 0 {
 		c.Err = model.NewLocAppError("executeCommand", "api.command.execute_command.start.app_error", nil, "")
 		return
 	}
 
-	if len(channelId) > 0 {
-		if !HasPermissionToChannelContext(c, channelId, model.PERMISSION_USE_SLASH_COMMANDS) {
+	if len(commandArgs.ChannelId) > 0 {
+		if !HasPermissionToChannelContext(c, commandArgs.ChannelId, model.PERMISSION_USE_SLASH_COMMANDS) {
 			return
 		}
 	}
 
-	parts := strings.Split(command, " ")
+	parts := strings.Split(commandArgs.Command, " ")
 	trigger := parts[0][1:]
 	trigger = strings.ToLower(trigger)
 	message := strings.Join(parts[1:], " ")
 	provider := GetCommandProvider(trigger)
 
 	if provider != nil {
-		response := provider.DoCommand(c, channelId, message)
-		handleResponse(c, w, response, channelId, provider.GetCommand(c), true)
+		response := provider.DoCommand(c, commandArgs, message)
+		handleResponse(c, w, response, commandArgs, provider.GetCommand(c), true)
 		return
 	} else {
 
@@ -120,7 +119,7 @@ func executeCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		chanChan := Srv.Store.Channel().Get(channelId)
+		chanChan := Srv.Store.Channel().Get(commandArgs.ChannelId, true)
 		teamChan := Srv.Store.Team().Get(c.TeamId)
 		userChan := Srv.Store.User().Get(c.Session.UserId)
 
@@ -135,7 +134,6 @@ func executeCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 				return
 			} else {
 				team = tr.Data.(*model.Team)
-
 			}
 
 			var user *model.User
@@ -165,7 +163,7 @@ func executeCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 					p.Set("team_id", cmd.TeamId)
 					p.Set("team_domain", team.Name)
 
-					p.Set("channel_id", channelId)
+					p.Set("channel_id", commandArgs.ChannelId)
 					p.Set("channel_name", channel.Name)
 
 					p.Set("user_id", c.Session.UserId)
@@ -199,7 +197,7 @@ func executeCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 							if response == nil {
 								c.Err = model.NewLocAppError("command", "api.command.execute_command.failed_empty.app_error", map[string]interface{}{"Trigger": trigger}, "")
 							} else {
-								handleResponse(c, w, response, channelId, cmd, false)
+								handleResponse(c, w, response, commandArgs, cmd, false)
 							}
 						} else {
 							defer resp.Body.Close()
@@ -218,10 +216,11 @@ func executeCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.Err = model.NewLocAppError("command", "api.command.execute_command.not_found.app_error", map[string]interface{}{"Trigger": trigger}, "")
 }
 
-func handleResponse(c *Context, w http.ResponseWriter, response *model.CommandResponse, channelId string, cmd *model.Command, builtIn bool) {
-
+func handleResponse(c *Context, w http.ResponseWriter, response *model.CommandResponse, commandArgs *model.CommandArgs, cmd *model.Command, builtIn bool) {
 	post := &model.Post{}
-	post.ChannelId = channelId
+	post.ChannelId = commandArgs.ChannelId
+	post.RootId = commandArgs.RootId
+	post.ParentId = commandArgs.ParentId
 
 	if !builtIn {
 		post.AddProp("from_webhook", "true")
@@ -230,6 +229,8 @@ func handleResponse(c *Context, w http.ResponseWriter, response *model.CommandRe
 	if utils.Cfg.ServiceSettings.EnablePostUsernameOverride {
 		if len(cmd.Username) != 0 {
 			post.AddProp("override_username", cmd.Username)
+		} else if len(response.Username) != 0 {
+			post.AddProp("override_username", response.Username)
 		} else {
 			post.AddProp("override_username", model.DEFAULT_WEBHOOK_USERNAME)
 		}
@@ -238,27 +239,14 @@ func handleResponse(c *Context, w http.ResponseWriter, response *model.CommandRe
 	if utils.Cfg.ServiceSettings.EnablePostIconOverride {
 		if len(cmd.IconURL) != 0 {
 			post.AddProp("override_icon_url", cmd.IconURL)
+		} else if len(response.IconURL) != 0 {
+			post.AddProp("override_icon_url", response.IconURL)
 		} else {
 			post.AddProp("override_icon_url", "")
 		}
 	}
 
-	if response.ResponseType == model.COMMAND_RESPONSE_TYPE_IN_CHANNEL {
-		post.Message = response.Text
-		post.UserId = c.Session.UserId
-		if _, err := CreatePost(c, post, true); err != nil {
-			c.Err = model.NewLocAppError("command", "api.command.execute_command.save.app_error", nil, "")
-		}
-	} else if response.ResponseType == model.COMMAND_RESPONSE_TYPE_EPHEMERAL && response.Text != "" {
-		post.Message = response.Text
-		post.CreateAt = model.GetMillis()
-		post.UserId = c.Session.UserId
-		SendEphemeralPost(
-			c.TeamId,
-			c.Session.UserId,
-			post,
-		)
-	}
+	CreateCommandPost(c, post, response)
 
 	w.Write([]byte(response.ToJson()))
 }
@@ -316,6 +304,65 @@ func createCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 		c.LogAudit("success")
 		rcmd := result.Data.(*model.Command)
 		w.Write([]byte(rcmd.ToJson()))
+	}
+}
+
+func updateCommand(c *Context, w http.ResponseWriter, r *http.Request) {
+	if !*utils.Cfg.ServiceSettings.EnableCommands {
+		c.Err = model.NewLocAppError("updateCommand", "api.command.disabled.app_error", nil, "")
+		c.Err.StatusCode = http.StatusNotImplemented
+		return
+	}
+
+	if !HasPermissionToCurrentTeamContext(c, model.PERMISSION_MANAGE_SLASH_COMMANDS) {
+		c.Err = model.NewLocAppError("updateCommand", "api.command.admin_only.app_error", nil, "")
+		c.Err.StatusCode = http.StatusForbidden
+		return
+	}
+
+	c.LogAudit("attempt")
+
+	cmd := model.CommandFromJson(r.Body)
+
+	if cmd == nil {
+		c.SetInvalidParam("updateCommand", "command")
+		return
+	}
+
+	cmd.Trigger = strings.ToLower(cmd.Trigger)
+
+	var oldCmd *model.Command
+	if result := <-Srv.Store.Command().Get(cmd.Id); result.Err != nil {
+		c.Err = result.Err
+		return
+	} else {
+		oldCmd = result.Data.(*model.Command)
+
+		if c.Session.UserId != oldCmd.CreatorId && !HasPermissionToCurrentTeamContext(c, model.PERMISSION_MANAGE_OTHERS_SLASH_COMMANDS) {
+			c.LogAudit("fail - inappropriate permissions")
+			c.Err = model.NewLocAppError("updateCommand", "api.command.update.app_error", nil, "user_id="+c.Session.UserId)
+			return
+		}
+
+		if c.TeamId != oldCmd.TeamId {
+			c.Err = model.NewLocAppError("updateCommand", "api.command.team_mismatch.app_error", nil, "user_id="+c.Session.UserId)
+			return
+		}
+
+		cmd.Id = oldCmd.Id
+		cmd.Token = oldCmd.Token
+		cmd.CreateAt = oldCmd.CreateAt
+		cmd.UpdateAt = model.GetMillis()
+		cmd.DeleteAt = oldCmd.DeleteAt
+		cmd.CreatorId = oldCmd.CreatorId
+		cmd.TeamId = oldCmd.TeamId
+	}
+
+	if result := <-Srv.Store.Command().Update(cmd); result.Err != nil {
+		c.Err = result.Err
+		return
+	} else {
+		w.Write([]byte(result.Data.(*model.Command).ToJson()))
 	}
 }
 
@@ -415,7 +462,7 @@ func deleteCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 		c.Err = result.Err
 		return
 	} else {
-		if c.TeamId != result.Data.(*model.Command).TeamId || (c.Session.UserId != result.Data.(*model.Command).CreatorId && HasPermissionToCurrentTeamContext(c, model.PERMISSION_MANAGE_OTHERS_SLASH_COMMANDS)) {
+		if c.TeamId != result.Data.(*model.Command).TeamId || (c.Session.UserId != result.Data.(*model.Command).CreatorId && !HasPermissionToCurrentTeamContext(c, model.PERMISSION_MANAGE_OTHERS_SLASH_COMMANDS)) {
 			c.LogAudit("fail - inappropriate permissions")
 			c.Err = model.NewLocAppError("deleteCommand", "api.command.delete.app_error", nil, "user_id="+c.Session.UserId)
 			return

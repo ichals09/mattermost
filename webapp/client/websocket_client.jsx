@@ -8,17 +8,24 @@ const MAX_WEBSOCKET_RETRY_TIME = 300000; // 5 mins
 export default class WebSocketClient {
     constructor() {
         this.conn = null;
+        this.connectionUrl = null;
         this.sequence = 1;
         this.connectFailCount = 0;
         this.eventCallback = null;
         this.responseCallbacks = {};
+        this.firstConnectCallback = null;
         this.reconnectCallback = null;
         this.errorCallback = null;
         this.closeCallback = null;
     }
 
-    initialize(connectionUrl) {
+    initialize(connectionUrl = this.connectionUrl, token) {
         if (this.conn) {
+            return;
+        }
+
+        if (connectionUrl == null) {
+            console.log('websocket must have connection url'); //eslint-disable-line no-console
             return;
         }
 
@@ -27,14 +34,20 @@ export default class WebSocketClient {
         }
 
         this.conn = new WebSocket(connectionUrl);
+        this.connectionUrl = connectionUrl;
 
         this.conn.onopen = () => {
-            if (this.reconnectCallback) {
-                this.reconnectCallback();
+            if (token) {
+                this.sendMessage('authentication_challenge', {token});
             }
 
             if (this.connectFailCount > 0) {
                 console.log('websocket re-established connection'); //eslint-disable-line no-console
+                if (this.reconnectCallback) {
+                    this.reconnectCallback();
+                }
+            } else if (this.firstConnectCallback) {
+                this.firstConnectCallback();
             }
 
             this.connectFailCount = 0;
@@ -66,7 +79,7 @@ export default class WebSocketClient {
 
             setTimeout(
                 () => {
-                    this.initialize(connectionUrl);
+                    this.initialize(connectionUrl, token);
                 },
                 retryTime
             );
@@ -102,6 +115,10 @@ export default class WebSocketClient {
 
     setEventCallback(callback) {
         this.eventCallback = callback;
+    }
+
+    setFirstConnectCallback(callback) {
+        this.firstConnectCallback = callback;
     }
 
     setReconnectCallback(callback) {
@@ -140,21 +157,27 @@ export default class WebSocketClient {
 
         if (this.conn && this.conn.readyState === WebSocket.OPEN) {
             this.conn.send(JSON.stringify(msg));
-        } else if (!this.conn || this.conn.readyState === WebSocket.Closed) {
+        } else if (!this.conn || this.conn.readyState === WebSocket.CLOSED) {
             this.conn = null;
             this.initialize();
         }
     }
 
-    userTyping(channelId, parentId) {
+    userTyping(channelId, parentId, callback) {
         const data = {};
         data.channel_id = channelId;
         data.parent_id = parentId;
 
-        this.sendMessage('user_typing', data);
+        this.sendMessage('user_typing', data, callback);
     }
 
     getStatuses(callback) {
         this.sendMessage('get_statuses', null, callback);
+    }
+
+    getStatusesByIds(userIds, callback) {
+        const data = {};
+        data.user_ids = userIds;
+        this.sendMessage('get_statuses_by_ids', data, callback);
     }
 }

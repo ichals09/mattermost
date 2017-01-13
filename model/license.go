@@ -39,11 +39,13 @@ type Features struct {
 	Office365OAuth       *bool `json:"office365_oauth"`
 	Compliance           *bool `json:"compliance"`
 	Cluster              *bool `json:"cluster"`
+	Metrics              *bool `json:"metrics"`
 	CustomBrand          *bool `json:"custom_brand"`
 	MHPNS                *bool `json:"mhpns"`
 	SAML                 *bool `json:"saml"`
 	PasswordRequirements *bool `json:"password_requirements"`
-	FutureFeatures       *bool `json:"future_features"`
+	// after we enabled more features for webrtc we'll need to control them with this
+	FutureFeatures *bool `json:"future_features"`
 }
 
 func (f *Features) ToMap() map[string]interface{} {
@@ -54,6 +56,7 @@ func (f *Features) ToMap() map[string]interface{} {
 		"office365":    *f.Office365OAuth,
 		"compliance":   *f.Compliance,
 		"cluster":      *f.Cluster,
+		"metrics":      *f.Metrics,
 		"custom_brand": *f.CustomBrand,
 		"mhpns":        *f.MHPNS,
 		"saml":         *f.SAML,
@@ -101,6 +104,11 @@ func (f *Features) SetDefaults() {
 	if f.Cluster == nil {
 		f.Cluster = new(bool)
 		*f.Cluster = *f.FutureFeatures
+	}
+
+	if f.Metrics == nil {
+		f.Metrics = new(bool)
+		*f.Metrics = *f.FutureFeatures
 	}
 
 	if f.CustomBrand == nil {

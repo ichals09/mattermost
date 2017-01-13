@@ -9,7 +9,7 @@ import SuggestionStore from 'stores/suggestion_store.jsx';
 
 import Suggestion from './suggestion.jsx';
 
-const MAX_EMOTICON_SUGGESTIONS = 40;
+const MIN_EMOTICON_LENGTH = 2;
 
 class EmoticonSuggestion extends Suggestion {
     render() {
@@ -46,20 +46,28 @@ export default class EmoticonProvider {
     handlePretextChanged(suggestionId, pretext) {
         let hasSuggestions = false;
 
-        // look for partial matches among the named emojis
-        const captured = (/(?:^|\s)(:([^:\s]*))$/g).exec(pretext);
+        // look for the potential emoticons at the start of the text, after whitespace, and at the start of emoji reaction commands
+        const captured = (/(^|\s|^\+|^-)(:([^:\s]*))$/g).exec(pretext);
         if (captured) {
-            const text = captured[1];
-            const partialName = captured[2];
+            const prefix = captured[1];
+            const text = captured[2];
+            const partialName = captured[3];
+
+            if (partialName.length < MIN_EMOTICON_LENGTH) {
+                SuggestionStore.clearSuggestions(suggestionId);
+                return;
+            }
 
             const matched = [];
 
-            // check for text emoticons
-            for (const emoticon of Object.keys(Emoticons.emoticonPatterns)) {
-                if (Emoticons.emoticonPatterns[emoticon].test(text)) {
-                    SuggestionStore.addSuggestion(suggestionId, text, EmojiStore.get(emoticon), EmoticonSuggestion, text);
+            // check for text emoticons if this isn't for an emoji reaction
+            if (prefix !== '-' && prefix !== '+') {
+                for (const emoticon of Object.keys(Emoticons.emoticonPatterns)) {
+                    if (Emoticons.emoticonPatterns[emoticon].test(text)) {
+                        SuggestionStore.addSuggestion(suggestionId, text, EmojiStore.get(emoticon), EmoticonSuggestion, text);
 
-                    hasSuggestions = true;
+                        hasSuggestions = true;
+                    }
                 }
             }
 
@@ -67,20 +75,19 @@ export default class EmoticonProvider {
             for (const [name, emoji] of EmojiStore.getEmojis()) {
                 if (name.indexOf(partialName) !== -1) {
                     matched.push(emoji);
-
-                    if (matched.length >= MAX_EMOTICON_SUGGESTIONS) {
-                        break;
-                    }
                 }
             }
 
             // sort the emoticons so that emoticons starting with the entered text come first
             matched.sort((a, b) => {
-                const aPrefix = a.name.startsWith(partialName);
-                const bPrefix = b.name.startsWith(partialName);
+                const aName = a.name || a.aliases[0];
+                const bName = b.name || b.aliases[0];
+
+                const aPrefix = aName.startsWith(partialName);
+                const bPrefix = bName.startsWith(partialName);
 
                 if (aPrefix === bPrefix) {
-                    return a.name.localeCompare(b.name);
+                    return aName.localeCompare(bName);
                 } else if (aPrefix) {
                     return -1;
                 }
@@ -88,8 +95,9 @@ export default class EmoticonProvider {
                 return 1;
             });
 
-            const terms = matched.map((emoticon) => ':' + emoticon.name + ':');
+            const terms = matched.map((emoticon) => ':' + (emoticon.name || emoticon.aliases[0]) + ':');
 
+            SuggestionStore.clearSuggestions(suggestionId);
             if (terms.length > 0) {
                 SuggestionStore.addSuggestions(suggestionId, terms, matched, EmoticonSuggestion, text);
 

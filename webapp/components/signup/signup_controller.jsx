@@ -59,7 +59,7 @@ export default class SignupController extends React.Component {
 
     componentDidMount() {
         AsyncClient.checkVersion();
-
+        BrowserStore.removeGlobalItem('team');
         if (this.props.location.query) {
             const hash = this.props.location.query.h;
             const data = this.props.location.query.d;
@@ -79,16 +79,11 @@ export default class SignupController extends React.Component {
                             }
                         );
                     },
-                    () => {
+                    (e) => {
                         this.setState({ // eslint-disable-line react/no-did-mount-set-state
                             noOpenServerError: true,
                             loading: false,
-                            serverError: (
-                                <FormattedMessage
-                                    id='signup_user_completed.invalid_invite'
-                                    defaultMessage='The invite link was invalid.  Please speak with your Administrator to receive an invitation.'
-                                />
-                            )
+                            serverError: e.message
                         });
                     }
                 );
@@ -127,7 +122,7 @@ export default class SignupController extends React.Component {
             }
 
             if (userLoggedIn) {
-                browserHistory.push('/select_team');
+                GlobalActions.redirectUserToDefaultTeam();
             }
         }
     }

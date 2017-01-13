@@ -38,10 +38,11 @@ describe('Client.Commands', function() {
 
     it('executeCommand', function(done) {
         TestHelper.initBasic(() => {
+            const args = {};
+            args.channel_id = TestHelper.basicChannel().id;
             TestHelper.basicClient().executeCommand(
-                TestHelper.basicChannel().id,
                 '/shrug',
-                null,
+                args,
                 function(data) {
                     assert.equal(data.response_type, 'in_channel');
                     done();
@@ -69,6 +70,34 @@ describe('Client.Commands', function() {
             cmd.display_name = 'Unit Test';
 
             TestHelper.basicClient().addCommand(
+                cmd,
+                function() {
+                    done(new Error('cmds not enabled'));
+                },
+                function(err) {
+                    assert.equal(err.id, 'api.command.disabled.app_error');
+                    done();
+                }
+            );
+        });
+    });
+
+    it('editCommand', function(done) {
+        TestHelper.initBasic(() => {
+            TestHelper.basicClient().enableLogErrorsToConsole(false); // Disabling since this unit test causes an error
+
+            var cmd = {};
+            cmd.url = 'http://www.gonowhere.com';
+            cmd.trigger = '/hello';
+            cmd.method = 'P';
+            cmd.username = '';
+            cmd.icon_url = '';
+            cmd.auto_complete = false;
+            cmd.auto_complete_desc = '';
+            cmd.auto_complete_hint = '';
+            cmd.display_name = 'Unit Test';
+
+            TestHelper.basicClient().editCommand(
                 cmd,
                 function() {
                     done(new Error('cmds not enabled'));

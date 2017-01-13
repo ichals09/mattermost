@@ -33,7 +33,7 @@ export default class AdvancedSettingsDisplay extends React.Component {
     }
 
     getStateFromStores() {
-        const preReleaseFeaturesKeys = Object.keys(PreReleaseFeatures);
+        let preReleaseFeaturesKeys = Object.keys(PreReleaseFeatures);
         const advancedSettings = PreferenceStore.getCategory(Constants.Preferences.CATEGORY_ADVANCED_SETTINGS);
         const settings = {
             send_on_ctrl_enter: PreferenceStore.get(
@@ -55,6 +55,12 @@ export default class AdvancedSettingsDisplay extends React.Component {
 
         let enabledFeatures = 0;
         for (const [name, value] of advancedSettings) {
+            const webrtcEnabled = global.mm_config.EnableWebrtc === 'true';
+
+            if (!webrtcEnabled) {
+                preReleaseFeaturesKeys = preReleaseFeaturesKeys.filter((f) => f !== 'WEBRTC_PREVIEW');
+            }
+
             for (const key of preReleaseFeaturesKeys) {
                 const feature = PreReleaseFeatures[key];
 
@@ -169,8 +175,8 @@ export default class AdvancedSettingsDisplay extends React.Component {
                             defaultMessage='Enable Post Formatting'
                         />
                     }
-                    inputs={
-                        <div>
+                    inputs={[
+                        <div key='formattingSetting'>
                             <div className='radio'>
                                 <label>
                                     <input
@@ -209,7 +215,7 @@ export default class AdvancedSettingsDisplay extends React.Component {
                                 />
                             </div>
                         </div>
-                    }
+                    ]}
                     submit={() => this.handleSubmit('formatting')}
                     server_error={this.state.serverError}
                     updateSection={(e) => {
@@ -245,8 +251,8 @@ export default class AdvancedSettingsDisplay extends React.Component {
                                 defaultMessage='Enable Join/Leave Messages'
                             />
                         }
-                        inputs={
-                            <div>
+                        inputs={[
+                            <div key='joinLeaveSetting'>
                                 <div className='radio'>
                                     <label>
                                         <input
@@ -285,7 +291,7 @@ export default class AdvancedSettingsDisplay extends React.Component {
                                     />
                                 </div>
                             </div>
-                        }
+                        ]}
                         submit={() => this.handleSubmit('join_leave')}
                         server_error={this.state.serverError}
                         updateSection={(e) => {
@@ -327,6 +333,13 @@ export default class AdvancedSettingsDisplay extends React.Component {
                 <FormattedMessage
                     id='user.settings.advance.embed_preview'
                     defaultMessage='Show experimental previews of link content, when available'
+                />
+            );
+        case 'WEBRTC_PREVIEW':
+            return (
+                <FormattedMessage
+                    id='user.settings.advance.webrtc_preview'
+                    defaultMessage='Enable the ability to make and receive one-on-one WebRTC calls'
                 />
             );
         default:

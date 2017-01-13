@@ -1,6 +1,78 @@
 @charset 'UTF-8';
 
 @media screen and (max-width: 960px) {
+    .textarea-wrapper {
+        .textbox-preview-link,
+        .textbox-help-link {
+            display: none;
+        }
+    }
+
+    .channel-header {
+        .heading {
+            max-width: 100px;
+        }
+    }
+
+    .search__form {
+        .sidebar--right & {
+            width: 300px;
+        }
+    }
+
+    .post-create__container {
+        form {
+            padding: .5em 0;
+        }
+
+        .post-create-footer {
+            padding: 0 45px 0 45px;
+
+            .msg-typing {
+                display: none;
+            }
+
+            .post-error {
+                left: 32px;
+                position: relative;
+                top: 0;
+
+                .sidebar--right & {
+                    left: 0;
+                }
+            }
+        }
+
+        .post-create-body {
+            display: table;
+            width: 100%;
+
+            .post-body__cell {
+                display: table-cell;
+                padding-left: 45px;
+
+                .sidebar--right & {
+                    padding-left: 0;
+                }
+            }
+
+            .app__content & {
+                .btn-file {
+                    bottom: -2px;
+                    left: 0;
+                    line-height: 36px;
+                    padding: 0;
+                    top: auto;
+                    width: 45px;
+                }
+            }
+
+            .send-button {
+                display: table-cell;
+            }
+        }
+    }
+
     .signup-team__container {
         &.branded {
             display: block;
@@ -14,10 +86,11 @@
     }
 
     .sidebar--right {
-        @include single-transition(all, .5s, ease);
+        @include single-transition(all, .35s, ease);
         @include translateX(100%);
 
-        &.move--left {
+        &.move--left,
+        &.webrtc--show {
             -webkit-transform: translateX(0) !important;
             -moz-transform: translateX(0) !important;
             -ms-transform: translateX(0) !important;
@@ -53,7 +126,8 @@
             margin-right: 0 !important;
         }
 
-        &.move--left {
+        &.move--left,
+        &.webrtc--show {
             margin-right: 0 !important;
 
             .channel-header__links {
@@ -72,7 +146,8 @@
     }
 
     .sidebar--right {
-        &.move--left {
+        &.move--left,
+        &.webrtc--show {
             @include translateX(0);
         }
 
@@ -106,7 +181,8 @@
     }
 
     .inner-wrap {
-        &.move--left {
+        &.move--left,
+        &.webrtc--show {
             margin-right: 400px;
         }
     }

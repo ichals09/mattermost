@@ -1,23 +1,24 @@
 // Copyright (c) 2015 Mattermost, Inc. All Rights Reserved.
 // See License.txt for license information.
 
-import $ from 'jquery';
-import {Modal} from 'react-bootstrap';
-import SettingItemMin from './setting_item_min.jsx';
-import SettingItemMax from './setting_item_max.jsx';
+import SettingItemMin from 'components/setting_item_min.jsx';
+import SettingItemMax from 'components/setting_item_max.jsx';
 
-import Client from 'client/web_client.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
 
+import $ from 'jquery';
+import React from 'react';
+import {Modal} from 'react-bootstrap';
 import {FormattedMessage} from 'react-intl';
 
-import React from 'react';
+import {updateChannelNotifyProps} from 'actions/channel_actions.jsx';
 
 export default class ChannelNotificationsModal extends React.Component {
     constructor(props) {
         super(props);
 
         this.updateSection = this.updateSection.bind(this);
+        this.onHide = this.onHide.bind(this);
 
         this.handleSubmitNotifyLevel = this.handleSubmitNotifyLevel.bind(this);
         this.handleUpdateNotifyLevel = this.handleUpdateNotifyLevel.bind(this);
@@ -29,45 +30,46 @@ export default class ChannelNotificationsModal extends React.Component {
 
         this.state = {
             activeSection: '',
-            notifyLevel: '',
-            unreadLevel: ''
+            show: true,
+            notifyLevel: props.channelMember.notify_props.desktop,
+            unreadLevel: props.channelMember.notify_props.mark_unread
         };
     }
+
     updateSection(section) {
         if ($('.section-max').length) {
             $('.settings-modal .modal-body').scrollTop(0).perfectScrollbar('update');
         }
         this.setState({activeSection: section});
     }
-    componentWillReceiveProps(nextProps) {
-        if (!this.props.show && nextProps.show) {
-            this.setState({
-                notifyLevel: nextProps.channelMember.notify_props.desktop,
-                unreadLevel: nextProps.channelMember.notify_props.mark_unread
-            });
-        }
+
+    onHide() {
+        this.setState({show: false});
     }
+
     handleSubmitNotifyLevel() {
-        var channelId = this.props.channel.id;
-        var notifyLevel = this.state.notifyLevel;
+        const channelId = this.props.channel.id;
+        const notifyLevel = this.state.notifyLevel;
+        const currentUserId = this.props.currentUser.id;
 
         if (this.props.channelMember.notify_props.desktop === notifyLevel) {
             this.updateSection('');
             return;
         }
 
-        var data = {};
-        data.channel_id = channelId;
-        data.user_id = this.props.currentUser.id;
-        data.desktop = notifyLevel;
+        const data = {
+            channel_id: channelId,
+            user_id: currentUserId,
+            desktop: notifyLevel
+        };
 
-        //TODO: This should be moved to event_helpers
-        Client.updateChannelNotifyProps(data,
+        updateChannelNotifyProps(data,
             () => {
                 // YUCK
-                var member = ChannelStore.getMember(channelId);
+                var member = ChannelStore.getMyMember(channelId);
                 member.notify_props.desktop = notifyLevel;
-                ChannelStore.setChannelMember(member);
+                ChannelStore.storeMyChannelMember(member);
+
                 this.updateSection('');
             },
             (err) => {
@@ -75,12 +77,14 @@ export default class ChannelNotificationsModal extends React.Component {
             }
         );
     }
+
     handleUpdateNotifyLevel(notifyLevel) {
         this.setState({notifyLevel});
     }
+
     createNotifyLevelSection(serverError) {
         // Get glabal user setting for notifications
-        const globalNotifyLevel = this.props.currentUser.notify_props.desktop;
+        const globalNotifyLevel = this.props.currentUser.notify_props ? this.props.currentUser.notify_props.desktop : 'all';
         let globalNotifyLevelName;
         if (globalNotifyLevel === 'all') {
             globalNotifyLevelName = (
@@ -256,13 +260,12 @@ export default class ChannelNotificationsModal extends React.Component {
             mark_unread: markUnreadLevel
         };
 
-        //TODO: This should be fixed, moved to event_helpers
-        Client.updateChannelNotifyProps(data,
+        updateChannelNotifyProps(data,
             () => {
                 // Yuck...
-                var member = ChannelStore.getMember(channelId);
+                var member = ChannelStore.getMyMember(channelId);
                 member.notify_props.mark_unread = markUnreadLevel;
-                ChannelStore.setChannelMember(member);
+                ChannelStore.storeMyChannelMember(member);
                 this.updateSection('');
             },
             (err) => {
@@ -380,9 +383,10 @@ export default class ChannelNotificationsModal extends React.Component {
 
         return (
             <Modal
-                show={this.props.show}
-                dialogClassName='settings-modal'
-                onHide={this.props.onHide}
+                show={this.state.show}
+                dialogClassName='settings-modal settings-modal--tabless'
+                onHide={this.onHide}
+                onExited={this.props.onHide}
             >
                 <Modal.Header closeButton={true}>
                     <Modal.Title>
@@ -417,7 +421,6 @@ export default class ChannelNotificationsModal extends React.Component {
 }
 
 ChannelNotificationsModal.propTypes = {
-    show: React.PropTypes.bool.isRequired,
     onHide: React.PropTypes.func.isRequired,
     channel: React.PropTypes.object.isRequired,
     channelMember: React.PropTypes.object.isRequired,

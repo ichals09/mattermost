@@ -84,7 +84,8 @@ func (me *LoadTestProvider) GetCommand(c *Context) *model.Command {
 	}
 }
 
-func (me *LoadTestProvider) DoCommand(c *Context, channelId string, message string) *model.CommandResponse {
+func (me *LoadTestProvider) DoCommand(c *Context, args *model.CommandArgs, message string) *model.CommandResponse {
+	channelId := args.ChannelId
 
 	//This command is only available when EnableTesting is true
 	if !utils.Cfg.ServiceSettings.EnableTesting {
@@ -288,7 +289,7 @@ func (me *LoadTestProvider) PostsCommand(c *Context, channelId string, message s
 	}
 
 	var usernames []string
-	if result := <-Srv.Store.User().GetProfiles(c.TeamId); result.Err == nil {
+	if result := <-Srv.Store.User().GetProfiles(c.TeamId, 0, 1000); result.Err == nil {
 		profileUsers := result.Data.(map[string]*model.User)
 		usernames = make([]string, len(profileUsers))
 		i := 0

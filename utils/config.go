@@ -31,6 +31,7 @@ var CfgDiagnosticId = ""
 var CfgHash = ""
 var CfgFileName string = ""
 var ClientCfg map[string]string = map[string]string{}
+var originalDisableDebugLvl l4g.Level = l4g.DEBUG
 
 func FindConfigFile(fileName string) string {
 	if _, err := os.Stat("./config/" + fileName); err == nil {
@@ -56,11 +57,16 @@ func FindDir(dir string) string {
 }
 
 func DisableDebugLogForTest() {
-	l4g.Global["stdout"].Level = l4g.WARNING
+	if l4g.Global["stdout"] != nil {
+		originalDisableDebugLvl = l4g.Global["stdout"].Level
+		l4g.Global["stdout"].Level = l4g.WARNING
+	}
 }
 
 func EnableDebugLogForTest() {
-	l4g.Global["stdout"].Level = l4g.DEBUG
+	if l4g.Global["stdout"] != nil {
+		l4g.Global["stdout"].Level = originalDisableDebugLvl
+	}
 }
 
 func ConfigureCmdLineLog() {
@@ -230,11 +236,14 @@ func getClientConfig(c *model.Config) map[string]string {
 	props["EnableTeamCreation"] = strconv.FormatBool(c.TeamSettings.EnableTeamCreation)
 	props["EnableUserCreation"] = strconv.FormatBool(c.TeamSettings.EnableUserCreation)
 	props["EnableOpenServer"] = strconv.FormatBool(*c.TeamSettings.EnableOpenServer)
-	props["RestrictTeamNames"] = strconv.FormatBool(*c.TeamSettings.RestrictTeamNames)
 	props["RestrictDirectMessage"] = *c.TeamSettings.RestrictDirectMessage
 	props["RestrictTeamInvite"] = *c.TeamSettings.RestrictTeamInvite
+	props["RestrictPublicChannelCreation"] = *c.TeamSettings.RestrictPublicChannelCreation
+	props["RestrictPrivateChannelCreation"] = *c.TeamSettings.RestrictPrivateChannelCreation
 	props["RestrictPublicChannelManagement"] = *c.TeamSettings.RestrictPublicChannelManagement
 	props["RestrictPrivateChannelManagement"] = *c.TeamSettings.RestrictPrivateChannelManagement
+	props["RestrictPublicChannelDeletion"] = *c.TeamSettings.RestrictPublicChannelDeletion
+	props["RestrictPrivateChannelDeletion"] = *c.TeamSettings.RestrictPrivateChannelDeletion
 
 	props["EnableOAuthServiceProvider"] = strconv.FormatBool(c.ServiceSettings.EnableOAuthServiceProvider)
 	props["SegmentDeveloperKey"] = c.ServiceSettings.SegmentDeveloperKey
@@ -287,6 +296,8 @@ func getClientConfig(c *model.Config) map[string]string {
 	props["AndroidAppDownloadLink"] = *c.NativeAppSettings.AndroidAppDownloadLink
 	props["IosAppDownloadLink"] = *c.NativeAppSettings.IosAppDownloadLink
 
+	props["EnableWebrtc"] = strconv.FormatBool(*c.WebrtcSettings.Enable)
+
 	if IsLicensed {
 		if *License.Features.CustomBrand {
 			props["EnableCustomBrand"] = strconv.FormatBool(*c.TeamSettings.EnableCustomBrand)
@@ -304,6 +315,7 @@ func getClientConfig(c *model.Config) map[string]string {
 
 		if *License.Features.MFA {
 			props["EnableMultifactorAuthentication"] = strconv.FormatBool(*c.ServiceSettings.EnableMultifactorAuthentication)
+			props["EnforceMultifactorAuthentication"] = strconv.FormatBool(*c.ServiceSettings.EnforceMultifactorAuthentication)
 		}
 
 		if *License.Features.Compliance {
@@ -320,6 +332,10 @@ func getClientConfig(c *model.Config) map[string]string {
 
 		if *License.Features.Cluster {
 			props["EnableCluster"] = strconv.FormatBool(*c.ClusterSettings.Enable)
+		}
+
+		if *License.Features.Cluster {
+			props["EnableMetrics"] = strconv.FormatBool(*c.MetricsSettings.Enable)
 		}
 
 		if *License.Features.GoogleOAuth {

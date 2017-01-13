@@ -17,14 +17,21 @@ const (
 	POST_JOIN_LEAVE            = "system_join_leave"
 	POST_ADD_REMOVE            = "system_add_remove"
 	POST_HEADER_CHANGE         = "system_header_change"
+	POST_DISPLAYNAME_CHANGE    = "system_displayname_change"
 	POST_CHANNEL_DELETED       = "system_channel_deleted"
 	POST_EPHEMERAL             = "system_ephemeral"
+	POST_FILEIDS_MAX_RUNES     = 150
+	POST_FILENAMES_MAX_RUNES   = 4000
+	POST_HASHTAGS_MAX_RUNES    = 1000
+	POST_MESSAGE_MAX_RUNES     = 4000
+	POST_PROPS_MAX_RUNES       = 8000
 )
 
 type Post struct {
 	Id            string          `json:"id"`
 	CreateAt      int64           `json:"create_at"`
 	UpdateAt      int64           `json:"update_at"`
+	EditAt        int64           `json:"edit_at"`
 	DeleteAt      int64           `json:"delete_at"`
 	UserId        string          `json:"user_id"`
 	ChannelId     string          `json:"channel_id"`
@@ -35,8 +42,10 @@ type Post struct {
 	Type          string          `json:"type"`
 	Props         StringInterface `json:"props"`
 	Hashtags      string          `json:"hashtags"`
-	Filenames     StringArray     `json:"filenames"`
+	Filenames     StringArray     `json:"filenames,omitempty"` // Deprecated, do not use this field any more
+	FileIds       StringArray     `json:"file_ids,omitempty"`
 	PendingPostId string          `json:"pending_post_id" db:"-"`
+	HasReactions  bool            `json:"has_reactions,omitempty"`
 }
 
 func (o *Post) ToJson() string {
@@ -101,24 +110,30 @@ func (o *Post) IsValid() *AppError {
 		return NewLocAppError("Post.IsValid", "model.post.is_valid.original_id.app_error", nil, "")
 	}
 
-	if utf8.RuneCountInString(o.Message) > 4000 {
+	if utf8.RuneCountInString(o.Message) > POST_MESSAGE_MAX_RUNES {
 		return NewLocAppError("Post.IsValid", "model.post.is_valid.msg.app_error", nil, "id="+o.Id)
 	}
 
-	if utf8.RuneCountInString(o.Hashtags) > 1000 {
+	if utf8.RuneCountInString(o.Hashtags) > POST_HASHTAGS_MAX_RUNES {
 		return NewLocAppError("Post.IsValid", "model.post.is_valid.hashtags.app_error", nil, "id="+o.Id)
 	}
 
 	// should be removed once more message types are supported
-	if !(o.Type == POST_DEFAULT || o.Type == POST_JOIN_LEAVE || o.Type == POST_ADD_REMOVE || o.Type == POST_SLACK_ATTACHMENT || o.Type == POST_HEADER_CHANGE) {
+	if !(o.Type == POST_DEFAULT || o.Type == POST_JOIN_LEAVE || o.Type == POST_ADD_REMOVE ||
+		o.Type == POST_SLACK_ATTACHMENT || o.Type == POST_HEADER_CHANGE ||
+		o.Type == POST_DISPLAYNAME_CHANGE || o.Type == POST_CHANNEL_DELETED) {
 		return NewLocAppError("Post.IsValid", "model.post.is_valid.type.app_error", nil, "id="+o.Type)
 	}
 
-	if utf8.RuneCountInString(ArrayToJson(o.Filenames)) > 4000 {
+	if utf8.RuneCountInString(ArrayToJson(o.Filenames)) > POST_FILENAMES_MAX_RUNES {
 		return NewLocAppError("Post.IsValid", "model.post.is_valid.filenames.app_error", nil, "id="+o.Id)
 	}
 
-	if utf8.RuneCountInString(StringInterfaceToJson(o.Props)) > 8000 {
+	if utf8.RuneCountInString(ArrayToJson(o.FileIds)) > POST_FILEIDS_MAX_RUNES {
+		return NewLocAppError("Post.IsValid", "model.post.is_valid.file_ids.app_error", nil, "id="+o.Id)
+	}
+
+	if utf8.RuneCountInString(StringInterfaceToJson(o.Props)) > POST_PROPS_MAX_RUNES {
 		return NewLocAppError("Post.IsValid", "model.post.is_valid.props.app_error", nil, "id="+o.Id)
 	}
 
@@ -145,14 +160,15 @@ func (o *Post) PreSave() {
 	if o.Filenames == nil {
 		o.Filenames = []string{}
 	}
+
+	if o.FileIds == nil {
+		o.FileIds = []string{}
+	}
 }
 
 func (o *Post) MakeNonNil() {
 	if o.Props == nil {
 		o.Props = make(map[string]interface{})
-	}
-	if o.Filenames == nil {
-		o.Filenames = []string{}
 	}
 }
 

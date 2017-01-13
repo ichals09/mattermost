@@ -3,11 +3,10 @@
 
 import ReactDOM from 'react-dom';
 import * as Utils from 'utils/utils.jsx';
-import Client from 'client/web_client.jsx';
-import * as AsyncClient from 'utils/async_client.jsx';
 import Constants from 'utils/constants.jsx';
 
 import {intlShape, injectIntl, defineMessages, FormattedMessage} from 'react-intl';
+import {updateChannel} from 'actions/channel_actions.jsx';
 
 import {Modal} from 'react-bootstrap';
 
@@ -44,7 +43,7 @@ const holders = defineMessages({
 
 import React from 'react';
 
-export default class RenameChannelModal extends React.Component {
+export class RenameChannelModal extends React.Component {
     constructor(props) {
         super(props);
 
@@ -123,7 +122,7 @@ export default class RenameChannelModal extends React.Component {
 
         const channel = Object.assign({}, this.props.channel);
         const oldName = channel.name;
-        const oldDisplayName = channel.displayName;
+        const oldDisplayName = channel.display_name;
         const state = {serverError: ''};
         const {formatMessage} = this.props.intl;
 
@@ -161,10 +160,8 @@ export default class RenameChannelModal extends React.Component {
             return;
         }
 
-        Client.updateChannel(
-            channel,
+        updateChannel(channel,
             () => {
-                AsyncClient.getChannel(channel.id);
                 this.handleHide();
             },
             (err) => {
@@ -216,7 +213,7 @@ export default class RenameChannelModal extends React.Component {
         const {formatMessage} = this.props.intl;
 
         let handleInputLabel = formatMessage(holders.handle);
-        let handleInputClass = 'form-control';
+        const handleInputClass = 'form-control';
         let readOnlyHandleInput = false;
         if (this.state.channelName === Constants.DEFAULT_CHANNEL) {
             handleInputLabel += formatMessage(holders.defaultError);

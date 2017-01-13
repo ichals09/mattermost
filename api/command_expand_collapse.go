@@ -4,6 +4,8 @@
 package api
 
 import (
+	"strconv"
+
 	"github.com/mattermost/platform/model"
 )
 
@@ -49,29 +51,36 @@ func (me *CollapseProvider) GetCommand(c *Context) *model.Command {
 	}
 }
 
-func (me *ExpandProvider) DoCommand(c *Context, channelId string, message string) *model.CommandResponse {
-	return setCollapsePreference(c, "false")
+func (me *ExpandProvider) DoCommand(c *Context, args *model.CommandArgs, message string) *model.CommandResponse {
+	return setCollapsePreference(c, false)
 }
 
-func (me *CollapseProvider) DoCommand(c *Context, channelId string, message string) *model.CommandResponse {
-	return setCollapsePreference(c, "true")
+func (me *CollapseProvider) DoCommand(c *Context, args *model.CommandArgs, message string) *model.CommandResponse {
+	return setCollapsePreference(c, true)
 }
 
-func setCollapsePreference(c *Context, value string) *model.CommandResponse {
+func setCollapsePreference(c *Context, isCollapse bool) *model.CommandResponse {
 	pref := model.Preference{
 		UserId:   c.Session.UserId,
 		Category: model.PREFERENCE_CATEGORY_DISPLAY_SETTINGS,
 		Name:     model.PREFERENCE_NAME_COLLAPSE_SETTING,
-		Value:    value,
+		Value:    strconv.FormatBool(isCollapse),
 	}
 
 	if result := <-Srv.Store.Preference().Save(&model.Preferences{pref}); result.Err != nil {
 		return &model.CommandResponse{Text: c.T("api.command_expand_collapse.fail.app_error"), ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 	}
 
-	socketMessage := model.NewWebSocketEvent("", "", c.Session.UserId, model.WEBSOCKET_EVENT_PREFERENCE_CHANGED)
+	socketMessage := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_PREFERENCE_CHANGED, "", "", c.Session.UserId, nil)
 	socketMessage.Add("preference", pref.ToJson())
 	go Publish(socketMessage)
 
-	return &model.CommandResponse{}
+	var rmsg string
+
+	if isCollapse {
+		rmsg = c.T("api.command_collapse.success")
+	} else {
+		rmsg = c.T("api.command_expand.success")
+	}
+	return &model.CommandResponse{ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL, Text: rmsg}
 }

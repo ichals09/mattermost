@@ -27,10 +27,24 @@ export default class TeamSignupDisplayNamePage extends React.Component {
 
         var displayName = ReactDOM.findDOMNode(this.refs.name).value.trim();
         if (!displayName) {
-            this.setState({nameError: Utils.localizeMessage('create_team.display_name.required', 'This field is required')});
+            this.setState({nameError: (
+                <FormattedMessage
+                    id='create_team.display_name.required'
+                    defaultMessage='This field is required'
+                />)
+            });
             return;
         } else if (displayName.length < Constants.MIN_TEAMNAME_LENGTH || displayName.length > Constants.MAX_TEAMNAME_LENGTH) {
-            this.setState({nameError: Utils.localizeMessage('create_team.display_name.charLength', 'Name must be 4 or more characters up to a maximum of 15')});
+            this.setState({nameError: (
+                <FormattedMessage
+                    id='create_team.display_name.charLength'
+                    defaultMessage='Name must be {min} or more characters up to a maximum of {max}. You can add a longer team description later.'
+                    values={{
+                        min: Constants.MIN_TEAMNAME_LENGTH,
+                        max: Constants.MAX_TEAMNAME_LENGTH
+                    }}
+                />)
+            });
             return;
         }
 
@@ -100,7 +114,7 @@ export default class TeamSignupDisplayNamePage extends React.Component {
                         <FormattedMessage
                             id='create_team.display_name.next'
                             defaultMessage='Next'
-                        /><i className='fa fa-chevron-right'></i>
+                        /><i className='fa fa-chevron-right'/>
                     </button>
                     <div className='margin--extra'>
                         <Link to='/select_team'>

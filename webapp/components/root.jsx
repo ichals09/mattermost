@@ -8,11 +8,12 @@ import Client from 'client/web_client.jsx';
 import {IntlProvider} from 'react-intl';
 
 import React from 'react';
-
 import FastClick from 'fastclick';
+import $ from 'jquery';
 
 import {browserHistory} from 'react-router/es6';
 import UserStore from 'stores/user_store.jsx';
+import BrowserStore from 'stores/browser_store.jsx';
 
 export default class Root extends React.Component {
     constructor(props) {
@@ -35,9 +36,34 @@ export default class Root extends React.Component {
         }
         /*eslint-enable */
 
+        // Force logout of all tabs if one tab is logged out
+        $(window).bind('storage', (e) => {
+            // when one tab on a browser logs out, it sets __logout__ in localStorage to trigger other tabs to log out
+            if (e.originalEvent.key === '__logout__' && e.originalEvent.storageArea === localStorage && e.originalEvent.newValue) {
+                // make sure it isn't this tab that is sending the logout signal (only necessary for IE11)
+                if (BrowserStore.isSignallingLogout(e.originalEvent.newValue)) {
+                    return;
+                }
+
+                console.log('detected logout from a different tab'); //eslint-disable-line no-console
+                GlobalActions.emitUserLoggedOutEvent('/', false);
+            }
+
+            if (e.originalEvent.key === '__login__' && e.originalEvent.storageArea === localStorage && e.originalEvent.newValue) {
+                // make sure it isn't this tab that is sending the logout signal (only necessary for IE11)
+                if (BrowserStore.isSignallingLogin(e.originalEvent.newValue)) {
+                    return;
+                }
+
+                console.log('detected login from a different tab'); //eslint-disable-line no-console
+                location.reload();
+            }
+        });
+
         // Fastclick
         FastClick.attach(document.body);
     }
+
     localizationChanged() {
         const locale = LocalizationStore.getLocale();
 
@@ -50,19 +76,22 @@ export default class Root extends React.Component {
             if (UserStore.getNoAccounts()) {
                 browserHistory.push('/signup_user_complete');
             } else if (UserStore.getCurrentUser()) {
-                browserHistory.push('/select_team');
+                GlobalActions.redirectUserToDefaultTeam();
             } else {
                 browserHistory.push('/login');
             }
         }
     }
+
     componentWillReceiveProps(newProps) {
         this.redirectIfNecessary(newProps);
     }
+
     componentWillMount() {
         // Redirect if Necessary
         this.redirectIfNecessary(this.props);
     }
+
     componentDidMount() {
         // Setup localization listener
         LocalizationStore.addChangeListener(this.localizationChanged);
@@ -70,9 +99,11 @@ export default class Root extends React.Component {
         // Get our localizaiton
         GlobalActions.loadDefaultLocale();
     }
+
     componentWillUnmount() {
         LocalizationStore.removeChangeListener(this.localizationChanged);
     }
+
     render() {
         if (this.state.translations == null || this.props.children == null) {
             return <div/>;

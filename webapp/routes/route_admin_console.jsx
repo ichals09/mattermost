@@ -18,8 +18,10 @@ import OAuthSettings from 'components/admin_console/oauth_settings.jsx';
 import LdapSettings from 'components/admin_console/ldap_settings.jsx';
 import SamlSettings from 'components/admin_console/saml_settings.jsx';
 import ClusterSettings from 'components/admin_console/cluster_settings.jsx';
+import MetricsSettings from 'components/admin_console/metrics_settings.jsx';
 import SignupSettings from 'components/admin_console/signup_settings.jsx';
 import PasswordSettings from 'components/admin_console/password_settings.jsx';
+import MfaSettings from 'components/admin_console/mfa_settings.jsx';
 import PublicLinkSettings from 'components/admin_console/public_link_settings.jsx';
 import SessionSettings from 'components/admin_console/session_settings.jsx';
 import ConnectionSettings from 'components/admin_console/connection_settings.jsx';
@@ -27,6 +29,7 @@ import EmailSettings from 'components/admin_console/email_settings.jsx';
 import PushSettings from 'components/admin_console/push_settings.jsx';
 import CustomIntegrationsSettings from 'components/admin_console/custom_integrations_settings.jsx';
 import ExternalServiceSettings from 'components/admin_console/external_service_settings.jsx';
+import WebrtcSettings from 'components/admin_console/webrtc_settings.jsx';
 import SampleAppSettings from 'components/admin_console/sample_app_settings.jsx';
 import DatabaseSettings from 'components/admin_console/database_settings.jsx';
 import StorageSettings from 'components/admin_console/storage_settings.jsx';
@@ -103,6 +106,10 @@ export default (
                 path='saml'
                 component={SamlSettings}
             />
+            <Route
+                path='mfa'
+                component={MfaSettings}
+            />
         </Route>
         <Route path='security'>
             <IndexRedirect to='sign_up'/>
@@ -147,6 +154,10 @@ export default (
             <Route
                 path='external'
                 component={ExternalServiceSettings}
+            />
+            <Route
+                path='webrtc'
+                component={WebrtcSettings}
             />
             <Route
                 path='app-center'
@@ -200,6 +211,10 @@ export default (
             <Route
                 path='cluster'
                 component={ClusterSettings}
+            />
+            <Route
+                path='metrics'
+                component={MetricsSettings}
             />
         </Route>
         <Route path='team'>

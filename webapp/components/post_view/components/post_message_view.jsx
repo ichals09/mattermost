@@ -2,18 +2,22 @@
 // See License.txt for license information.
 
 import React from 'react';
+import {FormattedMessage} from 'react-intl';
 
 import * as TextFormatting from 'utils/text_formatting.jsx';
 import * as Utils from 'utils/utils.jsx';
+import * as PostUtils from 'utils/post_utils.jsx';
 
 export default class PostMessageView extends React.Component {
     static propTypes = {
         options: React.PropTypes.object.isRequired,
-        message: React.PropTypes.string.isRequired,
+        post: React.PropTypes.object.isRequired,
         emojis: React.PropTypes.object.isRequired,
         enableFormatting: React.PropTypes.bool.isRequired,
         mentionKeys: React.PropTypes.arrayOf(React.PropTypes.string).isRequired,
-        usernameMap: React.PropTypes.object.isRequired
+        usernameMap: React.PropTypes.object.isRequired,
+        channelNamesMap: React.PropTypes.object.isRequired,
+        team: React.PropTypes.object.isRequired
     };
 
     shouldComponentUpdate(nextProps) {
@@ -21,7 +25,7 @@ export default class PostMessageView extends React.Component {
             return true;
         }
 
-        if (nextProps.message !== this.props.message) {
+        if (nextProps.post.message !== this.props.post.message) {
             return true;
         }
 
@@ -40,27 +44,52 @@ export default class PostMessageView extends React.Component {
 
         // Don't check if props.usernameMap changes since it is very large and inefficient to do so.
         // This mimics previous behaviour, but could be changed if we decide it's worth it.
+        // The same choice (and reasoning) is also applied to the this.props.channelNamesMap.
 
         return false;
     }
 
+    editedIndicator() {
+        return (
+            PostUtils.isEdited(this.props.post) ?
+                <span className='edited'>
+                    <FormattedMessage
+                        id='post_message_view.edited'
+                        defaultMessage='(edited)'
+                    />
+                </span> :
+                ''
+        );
+    }
+
     render() {
         if (!this.props.enableFormatting) {
-            return <span>{this.props.message}</span>;
+            return (
+                <span>
+                    {this.props.post.message}
+                    &nbsp;
+                    {this.editedIndicator()}
+                </span>
+            );
         }
 
         const options = Object.assign({}, this.props.options, {
             emojis: this.props.emojis,
             siteURL: Utils.getSiteURL(),
             mentionKeys: this.props.mentionKeys,
-            usernameMap: this.props.usernameMap
+            usernameMap: this.props.usernameMap,
+            channelNamesMap: this.props.channelNamesMap,
+            team: this.props.team
         });
 
         return (
-            <span
-                onClick={Utils.handleFormattedTextClick}
-                dangerouslySetInnerHTML={{__html: TextFormatting.formatText(this.props.message, options)}}
-            />
+            <div>
+                <span
+                    onClick={Utils.handleFormattedTextClick}
+                    dangerouslySetInnerHTML={{__html: TextFormatting.formatText(this.props.post.message, options)}}
+                />
+                {this.editedIndicator()}
+            </div>
         );
     }
 }

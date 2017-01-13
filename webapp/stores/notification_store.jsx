@@ -7,6 +7,7 @@ import Constants from 'utils/constants.jsx';
 import UserStore from './user_store.jsx';
 import ChannelStore from './channel_store.jsx';
 import PreferenceStore from './preference_store.jsx';
+import * as UserAgent from 'utils/user_agent.jsx';
 import * as Utils from 'utils/utils.jsx';
 import * as PostUtils from 'utils/post_utils.jsx';
 const ActionTypes = Constants.ActionTypes;
@@ -25,6 +26,9 @@ class NotificationStoreClass extends EventEmitter {
     removeChangeListener(callback) {
         this.removeListener(CHANGE_EVENT, callback);
     }
+    setFocus(focus) {
+        this.inFocus = focus;
+    }
 
     handleRecievedPost(post, msgProps) {
         // Send desktop notification
@@ -41,9 +45,9 @@ class NotificationStoreClass extends EventEmitter {
             }
             const teamId = msgProps.team_id;
 
-            const channel = ChannelStore.get(post.channel_id);
+            let channel = ChannelStore.get(post.channel_id);
             const user = UserStore.getCurrentUser();
-            const member = ChannelStore.getMember(post.channel_id);
+            const member = ChannelStore.getMyMember(post.channel_id);
 
             let notifyLevel = member && member.notify_props ? member.notify_props.desktop : 'default';
             if (notifyLevel === 'default') {
@@ -68,6 +72,9 @@ class NotificationStoreClass extends EventEmitter {
             let title = Utils.localizeMessage('channel_loader.posted', 'Posted');
             if (!channel) {
                 title = msgProps.channel_display_name;
+                channel = {
+                    name: msgProps.channel_name
+                };
             } else if (channel.type === Constants.DM_CHANNEL) {
                 title = Utils.localizeMessage('notification.dm', 'Direct Message');
             } else {
@@ -84,7 +91,7 @@ class NotificationStoreClass extends EventEmitter {
                 if (msgProps.image) {
                     body = username + Utils.localizeMessage('channel_loader.uploadedImage', ' uploaded an image');
                 } else if (msgProps.otherFile) {
-                    body = Utils.localizeMessage('channel_loader.uploadedFile', ' uploaded a file');
+                    body = username + Utils.localizeMessage('channel_loader.uploadedFile', ' uploaded a file');
                 } else {
                     body = username + Utils.localizeMessage('channel_loader.something', ' did something new');
                 }
@@ -97,10 +104,22 @@ class NotificationStoreClass extends EventEmitter {
                 duration = parseInt(user.notify_props.desktop_duration, 10) * 1000;
             }
 
-            Utils.notifyMe(title, body, channel, teamId, duration);
+            //Play a sound if explicitly set in settings
+            const sound = !user.notify_props || user.notify_props.desktop_sound === 'true';
 
-            if (!user.notify_props || user.notify_props.desktop_sound === 'true') {
-                Utils.ding();
+            // Notify if you're not looking in the right channel or when
+            // the window itself is not active
+            const activeChannel = ChannelStore.getCurrent();
+            const channelId = channel ? channel.id : null;
+            const notify = (activeChannel && activeChannel.id !== channelId) || !this.inFocus;
+
+            if (notify) {
+                Utils.notifyMe(title, body, channel, teamId, duration, !sound);
+
+                //Don't add extra sounds on native desktop clients
+                if (sound && !UserAgent.isWindowsApp() && !UserAgent.isMacApp() && !UserAgent.isMobileApp()) {
+                    Utils.ding();
+                }
             }
         }
     }
@@ -115,6 +134,9 @@ NotificationStore.dispatchToken = AppDispatcher.register((payload) => {
     case ActionTypes.RECEIVED_POST:
         NotificationStore.handleRecievedPost(action.post, action.websocketMessageProps);
         NotificationStore.emitChange();
+        break;
+    case ActionTypes.BROWSER_CHANGE_FOCUS:
+        NotificationStore.setFocus(action.focus);
         break;
     }
 });

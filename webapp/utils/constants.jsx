@@ -1,7 +1,7 @@
 // Copyright (c) 2015 Mattermost, Inc. All Rights Reserved.
 // See License.txt for license information.
 
-import keyMirror from 'keymirror';
+import keyMirror from 'key-mirror/keyMirror.js';
 
 import audioIcon from 'images/icons/audio.png';
 import videoIcon from 'images/icons/video.png';
@@ -16,16 +16,16 @@ import genericIcon from 'images/icons/generic.png';
 import logoImage from 'images/logo_compact.png';
 import logoWebhook from 'images/webhook_icon.jpg';
 
-import solarizedDarkCSS from '!!file?name=files/code_themes/[hash].[ext]!highlight.js/styles/solarized-dark.css';
+import solarizedDarkCSS from '!!file-loader?name=files/code_themes/[hash].[ext]!highlight.js/styles/solarized-dark.css';
 import solarizedDarkIcon from 'images/themes/code_themes/solarized-dark.png';
 
-import solarizedLightCSS from '!!file?name=files/code_themes/[hash].[ext]!highlight.js/styles/solarized-light.css';
+import solarizedLightCSS from '!!file-loader?name=files/code_themes/[hash].[ext]!highlight.js/styles/solarized-light.css';
 import solarizedLightIcon from 'images/themes/code_themes/solarized-light.png';
 
-import githubCSS from '!!file?name=files/code_themes/[hash].[ext]!highlight.js/styles/github.css';
+import githubCSS from '!!file-loader?name=files/code_themes/[hash].[ext]!highlight.js/styles/github.css';
 import githubIcon from 'images/themes/code_themes/github.png';
 
-import monokaiCSS from '!!file?name=files/code_themes/[hash].[ext]!highlight.js/styles/monokai.css';
+import monokaiCSS from '!!file-loader?name=files/code_themes/[hash].[ext]!highlight.js/styles/monokai.css';
 import monokaiIcon from 'images/themes/code_themes/monokai.png';
 
 import defaultThemeImage from 'images/themes/organization.png';
@@ -54,6 +54,7 @@ export const Preferences = {
     CATEGORY_THEME: 'theme',
     CATEGORY_FLAGGED_POST: 'flagged_post',
     CATEGORY_NOTIFICATIONS: 'notifications',
+    CATEGORY_FAVORITE_CHANNEL: 'favorite_channel',
     EMAIL_INTERVAL: 'email_interval'
 };
 
@@ -62,7 +63,6 @@ export const ActionTypes = keyMirror({
 
     CLICK_CHANNEL: null,
     CREATE_CHANNEL: null,
-    LEAVE_CHANNEL: null,
     CREATE_POST: null,
     CREATE_COMMENT: null,
     POST_DELETED: null,
@@ -70,8 +70,10 @@ export const ActionTypes = keyMirror({
 
     RECEIVED_CHANNELS: null,
     RECEIVED_CHANNEL: null,
+    RECEIVED_CHANNEL_MEMBER: null,
     RECEIVED_MORE_CHANNELS: null,
-    RECEIVED_CHANNEL_EXTRA_INFO: null,
+    RECEIVED_CHANNEL_STATS: null,
+    RECEIVED_MY_CHANNEL_MEMBERS: null,
 
     FOCUS_POST: null,
     RECEIVED_POSTS: null,
@@ -84,9 +86,11 @@ export const ActionTypes = keyMirror({
     RECEIVED_MENTION_DATA: null,
     RECEIVED_ADD_MENTION: null,
 
-    RECEIVED_PROFILES_FOR_DM_LIST: null,
     RECEIVED_PROFILES: null,
-    RECEIVED_DIRECT_PROFILES: null,
+    RECEIVED_PROFILES_IN_TEAM: null,
+    RECEIVED_PROFILE: null,
+    RECEIVED_PROFILES_IN_CHANNEL: null,
+    RECEIVED_PROFILES_NOT_IN_CHANNEL: null,
     RECEIVED_ME: null,
     RECEIVED_SESSIONS: null,
     RECEIVED_AUDITS: null,
@@ -95,7 +99,7 @@ export const ActionTypes = keyMirror({
     RECEIVED_PREFERENCE: null,
     RECEIVED_PREFERENCES: null,
     DELETED_PREFERENCES: null,
-    RECEIVED_FILE_INFO: null,
+    RECEIVED_FILE_INFOS: null,
     RECEIVED_ANALYTICS: null,
 
     RECEIVED_INCOMING_WEBHOOKS: null,
@@ -118,10 +122,15 @@ export const ActionTypes = keyMirror({
     UPDATED_CUSTOM_EMOJI: null,
     REMOVED_CUSTOM_EMOJI: null,
 
+    RECEIVED_REACTIONS: null,
+    ADDED_REACTION: null,
+    REMOVED_REACTION: null,
+
     RECEIVED_MSG: null,
 
     RECEIVED_MY_TEAM: null,
     CREATED_TEAM: null,
+    UPDATE_TEAM: null,
 
     RECEIVED_CONFIG: null,
     RECEIVED_LOGS: null,
@@ -129,8 +138,10 @@ export const ActionTypes = keyMirror({
     RECEIVED_SERVER_COMPLIANCE_REPORTS: null,
     RECEIVED_ALL_TEAMS: null,
     RECEIVED_ALL_TEAM_LISTINGS: null,
-    RECEIVED_TEAM_MEMBERS: null,
-    RECEIVED_MEMBERS_FOR_TEAM: null,
+    RECEIVED_MY_TEAM_MEMBERS: null,
+    RECEIVED_MY_TEAMS_UNREAD: null,
+    RECEIVED_MEMBERS_IN_TEAM: null,
+    RECEIVED_TEAM_STATS: null,
 
     RECEIVED_LOCALE: null,
 
@@ -151,12 +162,76 @@ export const ActionTypes = keyMirror({
     SUGGESTION_CLEAR_SUGGESTIONS: null,
     SUGGESTION_COMPLETE_WORD: null,
     SUGGESTION_SELECT_NEXT: null,
-    SUGGESTION_SELECT_PREVIOUS: null
+    SUGGESTION_SELECT_PREVIOUS: null,
+
+    BROWSER_CHANGE_FOCUS: null
 });
+
+export const WebrtcActionTypes = keyMirror({
+    INITIALIZE: null,
+    NOTIFY: null,
+    CHANGED: null,
+    ANSWER: null,
+    DECLINE: null,
+    CANCEL: null,
+    NO_ANSWER: null,
+    BUSY: null,
+    FAILED: null,
+    UNSUPPORTED: null,
+    MUTED: null,
+    IN_PROGRESS: null,
+    DISABLED: null,
+    RHS: null
+});
+
+export const UserStatuses = {
+    OFFLINE: 'offline',
+    AWAY: 'away',
+    ONLINE: 'online'
+};
+
+export const UserSearchOptions = {
+    ALLOW_INACTIVE: 'allow_inactive'
+};
+
+export const SocketEvents = {
+    POSTED: 'posted',
+    POST_EDITED: 'post_edited',
+    POST_DELETED: 'post_deleted',
+    CHANNEL_DELETED: 'channel_deleted',
+    CHANNEL_VIEWED: 'channel_viewed',
+    DIRECT_ADDED: 'direct_added',
+    NEW_USER: 'new_user',
+    LEAVE_TEAM: 'leave_team',
+    UPDATE_TEAM: 'update_team',
+    USER_ADDED: 'user_added',
+    USER_REMOVED: 'user_removed',
+    USER_UPDATED: 'user_updated',
+    TYPING: 'typing',
+    PREFERENCE_CHANGED: 'preference_changed',
+    EPHEMERAL_MESSAGE: 'ephemeral_message',
+    STATUS_CHANGED: 'status_change',
+    HELLO: 'hello',
+    WEBRTC: 'webrtc',
+    REACTION_ADDED: 'reaction_added',
+    REACTION_REMOVED: 'reaction_removed'
+};
+
+export const TutorialSteps = {
+    INTRO_SCREENS: 0,
+    POST_POPOVER: 1,
+    CHANNEL_POPOVER: 2,
+    MENU_POPOVER: 3
+};
 
 export const Constants = {
     Preferences,
+    SocketEvents,
     ActionTypes,
+    WebrtcActionTypes,
+    UserStatuses,
+    UserSearchOptions,
+    TutorialSteps,
 
     PayloadSources: keyMirror({
         SERVER_ACTION: null,
@@ -178,36 +253,21 @@ export const Constants = {
         POST_PER_DAY: null,
         USERS_WITH_POSTS_PER_DAY: null,
         RECENTLY_ACTIVE_USERS: null,
-        NEWLY_CREATED_USERS: null
+        NEWLY_CREATED_USERS: null,
+        TOTAL_WEBSOCKET_CONNECTIONS: null,
+        TOTAL_MASTER_DB_CONNECTIONS: null,
+        TOTAL_READ_DB_CONNECTIONS: null
     }),
     STAT_MAX_ACTIVE_USERS: 20,
     STAT_MAX_NEW_USERS: 20,
-
-    SocketEvents: {
-        POSTED: 'posted',
-        POST_EDITED: 'post_edited',
-        POST_DELETED: 'post_deleted',
-        CHANNEL_DELETED: 'channel_deleted',
-        CHANNEL_VIEWED: 'channel_viewed',
-        DIRECT_ADDED: 'direct_added',
-        NEW_USER: 'new_user',
-        LEAVE_TEAM: 'leave_team',
-        USER_ADDED: 'user_added',
-        USER_REMOVED: 'user_removed',
-        USER_UPDATED: 'user_updated',
-        TYPING: 'typing',
-        PREFERENCE_CHANGED: 'preference_changed',
-        EPHEMERAL_MESSAGE: 'ephemeral_message',
-        STATUS_CHANGED: 'status_change',
-        HELLO: 'hello'
-    },
 
     UserUpdateEvents: {
         USERNAME: 'username',
         FULLNAME: 'fullname',
         NICKNAME: 'nickname',
         EMAIL: 'email',
-        LANGUAGE: 'language'
+        LANGUAGE: 'language',
+        POSITION: 'position'
     },
 
     ScrollTypes: {
@@ -218,12 +278,6 @@ export const Constants = {
         POST: 5
     },
 
-    UserStatuses: {
-        OFFLINE: 'offline',
-        AWAY: 'away',
-        ONLINE: 'online'
-    },
-
     SPECIAL_MENTIONS: ['all', 'channel', 'here'],
     CHARACTER_LIMIT: 4000,
     IMAGE_TYPES: ['jpg', 'gif', 'bmp', 'png', 'jpeg'],
@@ -232,7 +286,7 @@ export const Constants = {
     PRESENTATION_TYPES: ['ppt', 'pptx'],
     SPREADSHEET_TYPES: ['xlsx', 'csv'],
     WORD_TYPES: ['doc', 'docx'],
-    CODE_TYPES: ['as', 'applescript', 'osascript', 'scpt', 'bash', 'sh', 'zsh', 'clj', 'boot', 'cl2', 'cljc', 'cljs', 'cljs.hl', 'cljscm', 'cljx', 'hic', 'coffee', '_coffee', 'cake', 'cjsx', 'cson', 'iced', 'cpp', 'c', 'cc', 'h', 'c++', 'h++', 'hpp', 'cs', 'csharp', 'css', 'd', 'di', 'dart', 'delphi', 'dpr', 'dfm', 'pas', 'pascal', 'freepascal', 'lazarus', 'lpr', 'lfm', 'diff', 'django', 'jinja', 'dockerfile', 'docker', 'erl', 'f90', 'f95', 'fsharp', 'fs', 'gcode', 'nc', 'go', 'groovy', 'handlebars', 'hbs', 'html.hbs', 'html.handlebars', 'hs', 'hx', 'java', 'jsp', 'js', 'jsx', 'json', 'jl', 'kt', 'ktm', 'kts', 'less', 'lisp', 'lua', 'mk', 'mak', 'md', 'mkdown', 'mkd', 'matlab', 'm', 'mm', 'objc', 'obj-c', 'ml', 'perl', 'pl', 'php', 'php3', 'php4', 'php5', 'php6', 'ps', 'ps1', 'pp', 'py', 'gyp', 'r', 'ruby', 'rb', 'gemspec', 'podspec', 'thor', 'irb', 'rs', 'scala', 'scm', 'sld', 'scss', 'st', 'sql', 'swift', 'tex', 'vbnet', 'vb', 'bas', 'vbs', 'v', 'veo', 'xml', 'html', 'xhtml', 'rss', 'atom', 'xsl', 'plist', 'yaml'],
+    CODE_TYPES: ['as', 'applescript', 'osascript', 'scpt', 'bash', 'sh', 'zsh', 'clj', 'boot', 'cl2', 'cljc', 'cljs', 'cljs.hl', 'cljscm', 'cljx', 'hic', 'coffee', '_coffee', 'cake', 'cjsx', 'cson', 'iced', 'cpp', 'c', 'cc', 'h', 'c++', 'h++', 'hpp', 'cs', 'csharp', 'css', 'd', 'di', 'dart', 'delphi', 'dpr', 'dfm', 'pas', 'pascal', 'freepascal', 'lazarus', 'lpr', 'lfm', 'diff', 'django', 'jinja', 'dockerfile', 'docker', 'erl', 'f90', 'f95', 'fsharp', 'fs', 'gcode', 'nc', 'go', 'groovy', 'handlebars', 'hbs', 'html.hbs', 'html.handlebars', 'hs', 'hx', 'java', 'jsp', 'js', 'jsx', 'json', 'jl', 'kt', 'ktm', 'kts', 'less', 'lisp', 'lua', 'mk', 'mak', 'md', 'mkdown', 'mkd', 'matlab', 'm', 'mm', 'objc', 'obj-c', 'ml', 'perl', 'pl', 'php', 'php3', 'php4', 'php5', 'php6', 'ps', 'ps1', 'pp', 'py', 'gyp', 'r', 'ruby', 'rb', 'gemspec', 'podspec', 'thor', 'irb', 'rs', 'scala', 'scm', 'sld', 'scss', 'st', 'sql', 'swift', 'tex', 'txt', 'vbnet', 'vb', 'bas', 'vbs', 'v', 'veo', 'xml', 'html', 'xhtml', 'rss', 'atom', 'xsl', 'plist', 'yaml'],
     PDF_TYPES: ['pdf'],
     PATCH_TYPES: ['patch'],
     ICON_FROM_TYPE: {
@@ -284,7 +338,7 @@ export const Constants = {
     SIGNIN_VERIFIED: 'verified',
     SESSION_EXPIRED: 'expired',
     POST_CHUNK_SIZE: 60,
-    MAX_POST_CHUNKS: 3,
+    PROFILE_CHUNK_SIZE: 100,
     POST_FOCUS_CONTEXT_RADIUS: 10,
     POST_LOADING: 'loading',
     POST_FAILED: 'failed',
@@ -296,23 +350,13 @@ export const Constants = {
     SYSTEM_MESSAGE_PROFILE_NAME: 'System',
     SYSTEM_MESSAGE_PROFILE_IMAGE: logoImage,
     RESERVED_TEAM_NAMES: [
-        'www',
-        'web',
+        'signup',
+        'login',
         'admin',
-        'support',
-        'notify',
-        'test',
-        'demo',
-        'mail',
-        'team',
         'channel',
-        'internal',
-        'localhost',
-        'dockerhost',
-        'stag',
         'post',
-        'cluster',
-        'api'
+        'api',
+        'oauth'
     ],
     RESERVED_USERNAMES: [
         'valet',
@@ -342,6 +386,7 @@ export const Constants = {
     COMMENT_ICON: "<svg version='1.1' id='Layer_2' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' x='0px' y='0px'width='15px' height='15px' viewBox='1 1.5 15 15' enable-background='new 1 1.5 15 15' xml:space='preserve'> <g> <g> <path fill='#211B1B' d='M14,1.5H3c-1.104,0-2,0.896-2,2v8c0,1.104,0.896,2,2,2h1.628l1.884,3l1.866-3H14c1.104,0,2-0.896,2-2v-8 C16,2.396,15.104,1.5,14,1.5z M15,11.5c0,0.553-0.447,1-1,1H8l-1.493,2l-1.504-1.991L5,12.5H3c-0.552,0-1-0.447-1-1v-8 c0-0.552,0.448-1,1-1h11c0.553,0,1,0.448,1,1V11.5z'/> </g> </g> </svg>",
     REPLY_ICON: "<svg version='1.1' id='Layer_1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' x='0px' y='0px'viewBox='-158 242 18 18' style='enable-background:new -158 242 18 18;' xml:space='preserve'> <path d='M-142.2,252.6c-2-3-4.8-4.7-8.3-4.8v-3.3c0-0.2-0.1-0.3-0.2-0.3s-0.3,0-0.4,0.1l-6.9,6.2c-0.1,0.1-0.1,0.2-0.1,0.3 c0,0.1,0,0.2,0.1,0.3l6.9,6.4c0.1,0.1,0.3,0.1,0.4,0.1c0.1-0.1,0.2-0.2,0.2-0.4v-3.8c4.2,0,7.4,0.4,9.6,4.4c0.1,0.1,0.2,0.2,0.3,0.2 c0,0,0.1,0,0.1,0c0.2-0.1,0.3-0.3,0.2-0.4C-140.2,257.3-140.6,255-142.2,252.6z M-150.8,252.5c-0.2,0-0.4,0.2-0.4,0.4v3.3l-6-5.5 l6-5.3v2.8c0,0.2,0.2,0.4,0.4,0.4c3.3,0,6,1.5,8,4.5c0.5,0.8,0.9,1.6,1.2,2.3C-144,252.8-147.1,252.5-150.8,252.5z'/> </svg>",
     SCROLL_BOTTOM_ICON: "<svg version='1.1' id='Layer_1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' x='0px' y='0px'viewBox='-239 239 21 23' style='enable-background:new -239 239 21 23;' xml:space='preserve'> <path d='M-239,241.4l2.4-2.4l8.1,8.2l8.1-8.2l2.4,2.4l-10.5,10.6L-239,241.4z M-228.5,257.2l8.1-8.2l2.4,2.4l-10.5,10.6l-10.5-10.6 l2.4-2.4L-228.5,257.2z'/> </svg>",
+    VIDEO_ICON: "<svg width='55%'height='100%'viewBox='0 0 13 8'> <g transform='matrix(1,0,0,1,-507,-146)'> <g transform='matrix(0.0133892,0,0,0.014499,500.635,142.838)'> <path d='M1158,547.286L1158,644.276C1158,684.245 1125.55,716.694 1085.58,716.694L579.341,716.694C539.372,716.694 506.922,684.245 506.922,644.276L506.922,306.322C506.922,266.353 539.371,233.904 579.341,233.903L1085.58,233.903C1125.55,233.904 1158,266.353 1158,306.322L1158,402.939L1359.75,253.14C1365.83,248.362 1373.43,245.973 1382.56,245.973C1386.61,245.973 1390.83,246.602 1395.22,247.859C1408.4,252.134 1414.99,259.552 1414.99,270.113L1414.99,680.485C1414.99,691.046 1408.4,698.464 1395.22,702.739C1390.83,703.996 1386.61,704.624 1382.56,704.624C1373.43,704.624 1365.83,702.236 1359.75,697.458L1158,547.286Z'/> </g> </g> </svg>",
     UPDATE_TYPING_MS: 5000,
     THEMES: {
         default: {
@@ -593,12 +638,6 @@ export const Constants = {
         Ubuntu: 'font--ubuntu'
     },
     DEFAULT_FONT: 'Open Sans',
-    TutorialSteps: {
-        INTRO_SCREENS: 0,
-        POST_POPOVER: 1,
-        CHANNEL_POPOVER: 2,
-        MENU_POPOVER: 3
-    },
     KeyCodes: {
         BACKSPACE: 8,
         TAB: 9,
@@ -698,62 +737,63 @@ export const Constants = {
     },
     CODE_PREVIEW_MAX_FILE_SIZE: 500000, // 500 KB
     HighlightedLanguages: {
-        actionscript: {name: 'ActionScript', extensions: ['as']},
+        actionscript: {name: 'ActionScript', extensions: ['as'], aliases: ['as', 'as3']},
         applescript: {name: 'AppleScript', extensions: ['applescript', 'osascript', 'scpt']},
         bash: {name: 'Bash', extensions: ['bash', 'sh', 'zsh']},
         clojure: {name: 'Clojure', extensions: ['clj', 'boot', 'cl2', 'cljc', 'cljs', 'cljs.hl', 'cljscm', 'cljx', 'hic']},
-        coffeescript: {name: 'CoffeeScript', extensions: ['coffee', '_coffee', 'cake', 'cjsx', 'cson', 'iced']},
-        cpp: {name: 'C/C++', extensions: ['cpp', 'c', 'cc', 'h', 'c++', 'h++', 'hpp']},
-        cs: {name: 'C#', extensions: ['cs', 'csharp']},
+        coffeescript: {name: 'CoffeeScript', extensions: ['coffee', '_coffee', 'cake', 'cjsx', 'cson', 'iced'], aliases: ['coffee', 'coffee-script']},
+        cpp: {name: 'C/C++', extensions: ['cpp', 'c', 'cc', 'h', 'c++', 'h++', 'hpp'], aliases: ['c++']},
+        cs: {name: 'C#', extensions: ['cs', 'csharp'], aliases: ['c#', 'csharp']},
         css: {name: 'CSS', extensions: ['css']},
-        d: {name: 'D', extensions: ['d', 'di']},
+        d: {name: 'D', extensions: ['d', 'di'], aliases: ['dlang']},
         dart: {name: 'Dart', extensions: ['dart']},
         delphi: {name: 'Delphi', extensions: ['delphi', 'dpr', 'dfm', 'pas', 'pascal', 'freepascal', 'lazarus', 'lpr', 'lfm']},
-        diff: {name: 'Diff', extensions: ['diff', 'patch']},
+        diff: {name: 'Diff', extensions: ['diff', 'patch'], aliases: ['patch', 'udiff']},
         django: {name: 'Django', extensions: ['django', 'jinja']},
-        dockerfile: {name: 'Dockerfile', extensions: ['dockerfile', 'docker']},
-        erlang: {name: 'Erlang', extensions: ['erl']},
+        dockerfile: {name: 'Dockerfile', extensions: ['dockerfile', 'docker'], aliases: ['docker']},
+        erlang: {name: 'Erlang', extensions: ['erl'], aliases: ['erl']},
         fortran: {name: 'Fortran', extensions: ['f90', 'f95']},
         fsharp: {name: 'F#', extensions: ['fsharp', 'fs']},
         gcode: {name: 'G-Code', extensions: ['gcode', 'nc']},
-        go: {name: 'Go', extensions: ['go']},
+        go: {name: 'Go', extensions: ['go'], aliases: ['golang']},
         groovy: {name: 'Groovy', extensions: ['groovy']},
-        handlebars: {name: 'Handlebars', extensions: ['handlebars', 'hbs', 'html.hbs', 'html.handlebars']},
-        haskell: {name: 'Haskell', extensions: ['hs']},
+        handlebars: {name: 'Handlebars', extensions: ['handlebars', 'hbs', 'html.hbs', 'html.handlebars'], aliases: ['hbs', 'mustache']},
+        haskell: {name: 'Haskell', extensions: ['hs'], aliases: ['hs']},
         haxe: {name: 'Haxe', extensions: ['hx']},
         java: {name: 'Java', extensions: ['java', 'jsp']},
-        javascript: {name: 'JavaScript', extensions: ['js', 'jsx']},
+        javascript: {name: 'JavaScript', extensions: ['js', 'jsx'], aliases: ['js']},
         json: {name: 'JSON', extensions: ['json']},
-        julia: {name: 'Julia', extensions: ['jl']},
+        julia: {name: 'Julia', extensions: ['jl'], aliases: ['jl']},
         kotlin: {name: 'Kotlin', extensions: ['kt', 'ktm', 'kts']},
         less: {name: 'Less', extensions: ['less']},
         lisp: {name: 'Lisp', extensions: ['lisp']},
         lua: {name: 'Lua', extensions: ['lua']},
-        makefile: {name: 'Makefile', extensions: ['mk', 'mak']},
-        markdown: {name: 'Markdown', extensions: ['md', 'mkdown', 'mkd']},
-        matlab: {name: 'Matlab', extensions: ['matlab', 'm']},
-        objectivec: {name: 'Objective C', extensions: ['mm', 'objc', 'obj-c']},
+        makefile: {name: 'Makefile', extensions: ['mk', 'mak'], aliases: ['make', 'mf', 'gnumake', 'bsdmake']},
+        markdown: {name: 'Markdown', extensions: ['md', 'mkdown', 'mkd'], aliases: ['md', 'mkd']},
+        matlab: {name: 'Matlab', extensions: ['matlab', 'm'], aliases: ['m']},
+        objectivec: {name: 'Objective C', extensions: ['mm', 'objc', 'obj-c'], aliases: ['objective_c', 'objc']},
         ocaml: {name: 'OCaml', extensions: ['ml']},
-        perl: {name: 'Perl', extensions: ['perl', 'pl']},
-        php: {name: 'PHP', extensions: ['php', 'php3', 'php4', 'php5', 'php6']},
-        powershell: {name: 'PowerShell', extensions: ['ps', 'ps1']},
-        puppet: {name: 'Puppet', extensions: ['pp']},
-        python: {name: 'Python', extensions: ['py', 'gyp']},
-        r: {name: 'R', extensions: ['r']},
-        ruby: {name: 'Ruby', extensions: ['ruby', 'rb', 'gemspec', 'podspec', 'thor', 'irb']},
-        rust: {name: 'Rust', extensions: ['rs']},
+        perl: {name: 'Perl', extensions: ['perl', 'pl'], aliases: ['pl']},
+        php: {name: 'PHP', extensions: ['php', 'php3', 'php4', 'php5', 'php6'], aliases: ['php3', 'php4', 'php5']},
+        powershell: {name: 'PowerShell', extensions: ['ps', 'ps1'], aliases: ['posh']},
+        puppet: {name: 'Puppet', extensions: ['pp'], aliases: ['pp']},
+        python: {name: 'Python', extensions: ['py', 'gyp'], aliases: ['py']},
+        r: {name: 'R', extensions: ['r'], aliases: ['r', 's']},
+        ruby: {name: 'Ruby', extensions: ['ruby', 'rb', 'gemspec', 'podspec', 'thor', 'irb'], aliases: ['rb']},
+        rust: {name: 'Rust', extensions: ['rs'], aliases: ['rs']},
         scala: {name: 'Scala', extensions: ['scala']},
         scheme: {name: 'Scheme', extensions: ['scm', 'sld']},
         scss: {name: 'SCSS', extensions: ['scss']},
-        smalltalk: {name: 'Smalltalk', extensions: ['st']},
+        smalltalk: {name: 'Smalltalk', extensions: ['st'], aliases: ['st', 'squeak']},
         sql: {name: 'SQL', extensions: ['sql']},
         swift: {name: 'Swift', extensions: ['swift']},
-        tex: {name: 'TeX', extensions: ['tex']},
-        vbnet: {name: 'VB.Net', extensions: ['vbnet', 'vb', 'bas']},
+        tex: {name: 'TeX', extensions: ['tex'], aliases: ['latex']},
+        text: {name: 'Text', extensions: ['txt']},
+        vbnet: {name: 'VB.Net', extensions: ['vbnet', 'vb', 'bas'], aliases: ['vb', 'visualbasic']},
         vbscript: {name: 'VBScript', extensions: ['vbs']},
         verilog: {name: 'Verilog', extensions: ['v', 'veo']},
         xml: {name: 'HTML, XML', extensions: ['xml', 'html', 'xhtml', 'rss', 'atom', 'xsl', 'plist']},
-        yaml: {name: 'YAML', extensions: ['yaml']}
+        yaml: {name: 'YAML', extensions: ['yaml'], aliases: ['yml']}
     },
     PostsViewJumpTypes: {
         BOTTOM: 1,
@@ -778,17 +818,28 @@ export const Constants = {
         EMBED_PREVIEW: {
             label: 'embed_preview',
             description: 'Show preview snippet of links below message'
+        },
+        WEBRTC_PREVIEW: {
+            label: 'webrtc_preview',
+            description: 'Enable WebRTC one on one calls'
         }
     },
+    OVERLAY_TIME_DELAY_SMALL: 100,
     OVERLAY_TIME_DELAY: 400,
+    WEBRTC_TIME_DELAY: 750,
+    WEBRTC_CLEAR_ERROR_DELAY: 15000,
     DEFAULT_MAX_USERS_PER_TEAM: 50,
-    MIN_TEAMNAME_LENGTH: 4,
+    MIN_TEAMNAME_LENGTH: 2,
+    DEFAULT_MAX_CHANNELS_PER_TEAM: 2000,
+    DEFAULT_MAX_NOTIFICATIONS_PER_CHANNEL: 1000,
     MAX_TEAMNAME_LENGTH: 15,
+    MAX_TEAMDESCRIPTION_LENGTH: 50,
     MIN_USERNAME_LENGTH: 3,
     MAX_USERNAME_LENGTH: 22,
     MAX_NICKNAME_LENGTH: 22,
     MIN_PASSWORD_LENGTH: 5,
     MAX_PASSWORD_LENGTH: 64,
+    MAX_POSITION_LENGTH: 35,
     MIN_TRIGGER_LENGTH: 1,
     MAX_TRIGGER_LENGTH: 128,
     MAX_TEXTSETTING_LENGTH: 1024,
@@ -808,10 +859,16 @@ export const Constants = {
     PERMISSIONS_ALL: 'all',
     PERMISSIONS_TEAM_ADMIN: 'team_admin',
     PERMISSIONS_SYSTEM_ADMIN: 'system_admin',
+    MENTION_CHANNELS: 'mention.channels',
+    MENTION_MORE_CHANNELS: 'mention.morechannels',
     MENTION_MEMBERS: 'mention.members',
     MENTION_NONMEMBERS: 'mention.nonmembers',
     MENTION_SPECIAL: 'mention.special',
-    DEFAULT_NOTIFICATION_DURATION: 5000
+    DEFAULT_NOTIFICATION_DURATION: 5000,
+    STATUS_INTERVAL: 60000,
+    AUTOCOMPLETE_TIMEOUT: 100,
+    ANIMATION_TIMEOUT: 1000,
+    SEARCH_TIMEOUT_MILLISECONDS: 100
 };
 
 export default Constants;

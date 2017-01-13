@@ -9,6 +9,7 @@ import ChannelStore from 'stores/channel_store.jsx';
 import SearchStore from 'stores/search_store.jsx';
 import UserStore from 'stores/user_store.jsx';
 import PreferenceStore from 'stores/preference_store.jsx';
+import WebrtcStore from 'stores/webrtc_store.jsx';
 
 import * as Utils from 'utils/utils.jsx';
 import Constants from 'utils/constants.jsx';
@@ -19,7 +20,7 @@ import React from 'react';
 import {FormattedMessage, FormattedHTMLMessage} from 'react-intl';
 
 function getStateFromStores() {
-    const results = SearchStore.getSearchResults();
+    const results = JSON.parse(JSON.stringify(SearchStore.getSearchResults()));
 
     const channels = new Map();
 
@@ -51,8 +52,10 @@ export default class SearchResults extends React.Component {
         this.onChange = this.onChange.bind(this);
         this.onUserChange = this.onUserChange.bind(this);
         this.onPreferenceChange = this.onPreferenceChange.bind(this);
+        this.onBusy = this.onBusy.bind(this);
         this.resize = this.resize.bind(this);
         this.onPreferenceChange = this.onPreferenceChange.bind(this);
+        this.onStatusChange = this.onStatusChange.bind(this);
         this.handleResize = this.handleResize.bind(this);
 
         const state = getStateFromStores();
@@ -60,6 +63,8 @@ export default class SearchResults extends React.Component {
         state.windowHeight = Utils.windowHeight();
         state.profiles = JSON.parse(JSON.stringify(UserStore.getProfiles()));
         state.compactDisplay = PreferenceStore.get(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.MESSAGE_DISPLAY, Preferences.MESSAGE_DISPLAY_DEFAULT) === Preferences.MESSAGE_DISPLAY_COMPACT;
+        state.isBusy = WebrtcStore.isBusy();
+        state.statuses = Object.assign({}, UserStore.getStatuses());
         this.state = state;
     }
 
@@ -70,7 +75,9 @@ export default class SearchResults extends React.Component {
         ChannelStore.addChangeListener(this.onChange);
         PreferenceStore.addChangeListener(this.onPreferenceChange);
         UserStore.addChangeListener(this.onUserChange);
+        UserStore.addStatusesChangeListener(this.onStatusChange);
         PreferenceStore.addChangeListener(this.onPreferenceChange);
+        WebrtcStore.addBusyListener(this.onBusy);
 
         this.resize();
         window.addEventListener('resize', this.handleResize);
@@ -80,6 +87,10 @@ export default class SearchResults extends React.Component {
     }
 
     shouldComponentUpdate(nextProps, nextState) {
+        if (!Utils.areObjectsEqual(nextState.statuses, this.state.statuses)) {
+            return true;
+        }
+
         if (!Utils.areObjectsEqual(this.props, nextProps)) {
             return true;
         }
@@ -92,11 +103,11 @@ export default class SearchResults extends React.Component {
             return true;
         }
 
-        return false;
-    }
+        if (nextState.isBusy !== this.state.isBusy) {
+            return true;
+        }
 
-    componentDidUpdate() {
-        this.resize();
+        return false;
     }
 
     componentWillUnmount() {
@@ -106,9 +117,17 @@ export default class SearchResults extends React.Component {
         ChannelStore.removeChangeListener(this.onChange);
         PreferenceStore.removeChangeListener(this.onPreferenceChange);
         UserStore.removeChangeListener(this.onUserChange);
+        UserStore.removeStatusesChangeListener(this.onStatusChange);
         PreferenceStore.removeChangeListener(this.onPreferenceChange);
+        WebrtcStore.removeBusyListener(this.onBusy);
 
         window.removeEventListener('resize', this.handleResize);
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if (this.state.searchTerm !== prevState.searchTerm) {
+            this.resize();
+        }
     }
 
     handleResize() {
@@ -133,6 +152,14 @@ export default class SearchResults extends React.Component {
 
     onUserChange() {
         this.setState({profiles: JSON.parse(JSON.stringify(UserStore.getProfiles()))});
+    }
+
+    onBusy(isBusy) {
+        this.setState({isBusy});
+    }
+
+    onStatusChange() {
+        this.setState({statuses: Object.assign({}, UserStore.getStatuses())});
     }
 
     resize() {
@@ -224,6 +251,11 @@ export default class SearchResults extends React.Component {
                     profile = profiles[post.user_id];
                 }
 
+                let status = 'offline';
+                if (this.state.statuses) {
+                    status = this.state.statuses[post.user_id] || 'offline';
+                }
+
                 let isFlagged = false;
                 if (this.state.flaggedPosts) {
                     isFlagged = this.state.flaggedPosts.get(post.id) === 'true';
@@ -241,6 +273,8 @@ export default class SearchResults extends React.Component {
                         useMilitaryTime={this.props.useMilitaryTime}
                         shrink={this.props.shrink}
                         isFlagged={isFlagged}
+                        isBusy={this.state.isBusy}
+                        status={status}
                     />
                 );
             }, this);
@@ -271,7 +305,7 @@ export default class SearchResults extends React.Component {
 SearchResults.propTypes = {
     isMentionSearch: React.PropTypes.bool,
     useMilitaryTime: React.PropTypes.bool.isRequired,
-    toggleSize: React.PropTypes.function,
-    shrink: React.PropTypes.function,
+    toggleSize: React.PropTypes.func,
+    shrink: React.PropTypes.func,
     isFlaggedPosts: React.PropTypes.bool
 };

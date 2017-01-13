@@ -13,6 +13,7 @@ import UserStore from 'stores/user_store.jsx';
 import PreferenceStore from 'stores/preference_store.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
 import * as GlobalActions from 'actions/global_actions.jsx';
+import {startPeriodicStatusUpdates, stopPeriodicStatusUpdates} from 'actions/status_actions.jsx';
 import Constants from 'utils/constants.jsx';
 const TutorialSteps = Constants.TutorialSteps;
 const Preferences = Constants.Preferences;
@@ -21,6 +22,9 @@ import ErrorBar from 'components/error_bar.jsx';
 import SidebarRight from 'components/sidebar_right.jsx';
 import SidebarRightMenu from 'components/sidebar_right_menu.jsx';
 import Navbar from 'components/navbar.jsx';
+import WebrtcSidebar from './webrtc/components/webrtc_sidebar.jsx';
+
+import WebrtcNotification from './webrtc/components/webrtc_notification.jsx';
 
 // Modals
 import GetPostLinkModal from 'components/get_post_link_modal.jsx';
@@ -28,13 +32,15 @@ import GetPublicLinkModal from 'components/get_public_link_modal.jsx';
 import GetTeamInviteLinkModal from 'components/get_team_invite_link_modal.jsx';
 import EditPostModal from 'components/edit_post_modal.jsx';
 import DeletePostModal from 'components/delete_post_modal.jsx';
-import MoreChannelsModal from 'components/more_channels.jsx';
 import TeamSettingsModal from 'components/team_settings_modal.jsx';
 import RemovedFromChannelModal from 'components/removed_from_channel_modal.jsx';
 import ImportThemeModal from 'components/user_settings/import_theme_modal.jsx';
 import InviteMemberModal from 'components/invite_member_modal.jsx';
 import LeaveTeamModal from 'components/leave_team_modal.jsx';
 import SelectTeamModal from 'components/admin_console/select_team_modal.jsx';
+
+import iNoBounce from 'inobounce';
+import * as UserAgent from 'utils/user_agent.jsx';
 
 export default class NeedsTeam extends React.Component {
     constructor(params) {
@@ -83,10 +89,12 @@ export default class NeedsTeam extends React.Component {
         // Emit view action
         GlobalActions.viewLoggedIn();
 
+        startPeriodicStatusUpdates();
+
         // Set up tracking for whether the window is active
         window.isActive = true;
         $(window).on('focus', () => {
-            AsyncClient.updateLastViewedAt();
+            AsyncClient.viewChannel();
             ChannelStore.resetCounts(ChannelStore.getCurrentId());
             ChannelStore.emitChange();
             window.isActive = true;
@@ -94,10 +102,17 @@ export default class NeedsTeam extends React.Component {
 
         $(window).on('blur', () => {
             window.isActive = false;
-            AsyncClient.setActiveChannel('');
+            if (UserStore.getCurrentUser()) {
+                AsyncClient.viewChannel('');
+            }
         });
 
         Utils.applyTheme(this.state.theme);
+
+        if (UserAgent.isIosSafari()) {
+            // Use iNoBounce to prevent scrolling past the boundaries of the page
+            iNoBounce.enable();
+        }
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -111,6 +126,11 @@ export default class NeedsTeam extends React.Component {
         PreferenceStore.removeChangeListener(this.onPreferencesChanged);
         $(window).off('focus');
         $(window).off('blur');
+
+        if (UserAgent.isIosSafari()) {
+            iNoBounce.disable();
+        }
+        stopPeriodicStatusUpdates();
     }
 
     render() {
@@ -121,6 +141,7 @@ export default class NeedsTeam extends React.Component {
             content.push(
                 this.props.navbar
             );
+            content.push(this.props.team_sidebar);
             content.push(
                 this.props.sidebar
             );
@@ -146,9 +167,11 @@ export default class NeedsTeam extends React.Component {
         return (
             <div className='channel-view'>
                 <ErrorBar/>
+                <WebrtcNotification/>
                 <div className='container-fluid'>
                     <SidebarRight/>
                     <SidebarRightMenu teamType={this.state.team.type}/>
+                    <WebrtcSidebar/>
                     {content}
 
                     <GetPostLinkModal/>
@@ -158,7 +181,6 @@ export default class NeedsTeam extends React.Component {
                     <LeaveTeamModal/>
                     <ImportThemeModal/>
                     <TeamSettingsModal/>
-                    <MoreChannelsModal/>
                     <EditPostModal/>
                     <DeletePostModal/>
                     <RemovedFromChannelModal/>
@@ -176,6 +198,7 @@ NeedsTeam.propTypes = {
     ]),
     navbar: React.PropTypes.element,
     sidebar: React.PropTypes.element,
+    team_sidebar: React.PropTypes.element,
     center: React.PropTypes.element,
     params: React.PropTypes.object,
     user: React.PropTypes.object

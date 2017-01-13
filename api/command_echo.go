@@ -39,7 +39,11 @@ func (me *EchoProvider) GetCommand(c *Context) *model.Command {
 	}
 }
 
-func (me *EchoProvider) DoCommand(c *Context, channelId string, message string) *model.CommandResponse {
+func (me *EchoProvider) DoCommand(c *Context, args *model.CommandArgs, message string) *model.CommandResponse {
+	if len(message) == 0 {
+		return &model.CommandResponse{Text: c.T("api.command_echo.message.app_error"), ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
+	}
+
 	maxThreads := 100
 
 	delay := 0
@@ -75,7 +79,9 @@ func (me *EchoProvider) DoCommand(c *Context, channelId string, message string) 
 	go func() {
 		defer func() { <-echoSem }()
 		post := &model.Post{}
-		post.ChannelId = channelId
+		post.ChannelId = args.ChannelId
+		post.RootId = args.RootId
+		post.ParentId = args.ParentId
 		post.Message = message
 		post.UserId = c.Session.UserId
 

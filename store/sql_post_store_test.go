@@ -4,6 +4,7 @@
 package store
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -37,15 +38,15 @@ func TestPostStoreGet(t *testing.T) {
 	o1.UserId = model.NewId()
 	o1.Message = "a" + model.NewId() + "b"
 
-	etag1 := (<-store.Post().GetEtag(o1.ChannelId)).Data.(string)
-	if strings.Index(etag1, model.CurrentVersion+".0.") != 0 {
+	etag1 := (<-store.Post().GetEtag(o1.ChannelId, false)).Data.(string)
+	if strings.Index(etag1, model.CurrentVersion+".") != 0 {
 		t.Fatal("Invalid Etag")
 	}
 
 	o1 = (<-store.Post().Save(o1)).Data.(*model.Post)
 
-	etag2 := (<-store.Post().GetEtag(o1.ChannelId)).Data.(string)
-	if strings.Index(etag2, model.CurrentVersion+"."+o1.Id) != 0 {
+	etag2 := (<-store.Post().GetEtag(o1.ChannelId, false)).Data.(string)
+	if strings.Index(etag2, fmt.Sprintf("%v.%v", model.CurrentVersion, o1.UpdateAt)) != 0 {
 		t.Fatal("Invalid Etag")
 	}
 
@@ -59,6 +60,41 @@ func TestPostStoreGet(t *testing.T) {
 
 	if err := (<-store.Post().Get("123")).Err; err == nil {
 		t.Fatal("Missing id should have failed")
+	}
+}
+
+func TestGetEtagCache(t *testing.T) {
+	Setup()
+	o1 := &model.Post{}
+	o1.ChannelId = model.NewId()
+	o1.UserId = model.NewId()
+	o1.Message = "a" + model.NewId() + "b"
+
+	etag1 := (<-store.Post().GetEtag(o1.ChannelId, true)).Data.(string)
+	if strings.Index(etag1, model.CurrentVersion+".") != 0 {
+		t.Fatal("Invalid Etag")
+	}
+
+	// This one should come from the cache
+	etag2 := (<-store.Post().GetEtag(o1.ChannelId, true)).Data.(string)
+	if strings.Index(etag2, model.CurrentVersion+".") != 0 {
+		t.Fatal("Invalid Etag")
+	}
+
+	o1 = (<-store.Post().Save(o1)).Data.(*model.Post)
+
+	// We have not invalidated the cache so this should be the same as above
+	etag3 := (<-store.Post().GetEtag(o1.ChannelId, true)).Data.(string)
+	if strings.Index(etag3, etag2) != 0 {
+		t.Fatal("Invalid Etag")
+	}
+
+	store.Post().InvalidateLastPostTimeCache(o1.ChannelId)
+
+	// Invalidated cache so we should get a good result
+	etag4 := (<-store.Post().GetEtag(o1.ChannelId, true)).Data.(string)
+	if strings.Index(etag4, fmt.Sprintf("%v.%v", model.CurrentVersion, o1.UpdateAt)) != 0 {
+		t.Fatal("Invalid Etag")
 	}
 }
 
@@ -87,45 +123,73 @@ func TestPostStoreUpdate(t *testing.T) {
 
 	ro1 := (<-store.Post().Get(o1.Id)).Data.(*model.PostList).Posts[o1.Id]
 	ro2 := (<-store.Post().Get(o1.Id)).Data.(*model.PostList).Posts[o2.Id]
-	ro6 := (<-store.Post().Get(o3.Id)).Data.(*model.PostList).Posts[o3.Id]
+	ro3 := (<-store.Post().Get(o3.Id)).Data.(*model.PostList).Posts[o3.Id]
 
 	if ro1.Message != o1.Message {
 		t.Fatal("Failed to save/get")
 	}
 
-	msg := o1.Message + "BBBBBBBBBB"
-	if result := <-store.Post().Update(ro1, msg, ""); result.Err != nil {
+	o1a := &model.Post{}
+	*o1a = *ro1
+	o1a.Message = ro1.Message + "BBBBBBBBBB"
+	if result := <-store.Post().Update(o1a, ro1); result.Err != nil {
 		t.Fatal(result.Err)
 	}
 
-	msg2 := o2.Message + "DDDDDDD"
-	if result := <-store.Post().Update(ro2, msg2, ""); result.Err != nil {
+	ro1a := (<-store.Post().Get(o1.Id)).Data.(*model.PostList).Posts[o1.Id]
+
+	if ro1a.Message != o1a.Message {
+		t.Fatal("Failed to update/get")
+	}
+
+	o2a := &model.Post{}
+	*o2a = *ro2
+	o2a.Message = ro2.Message + "DDDDDDD"
+	if result := <-store.Post().Update(o2a, ro2); result.Err != nil {
 		t.Fatal(result.Err)
 	}
 
-	msg3 := o3.Message + "WWWWWWW"
-	if result := <-store.Post().Update(ro6, msg3, "#hashtag"); result.Err != nil {
+	ro2a := (<-store.Post().Get(o1.Id)).Data.(*model.PostList).Posts[o2.Id]
+
+	if ro2a.Message != o2a.Message {
+		t.Fatal("Failed to update/get")
+	}
+
+	o3a := &model.Post{}
+	*o3a = *ro3
+	o3a.Message = ro3.Message + "WWWWWWW"
+	if result := <-store.Post().Update(o3a, ro3); result.Err != nil {
 		t.Fatal(result.Err)
 	}
 
-	ro3 := (<-store.Post().Get(o1.Id)).Data.(*model.PostList).Posts[o1.Id]
+	ro3a := (<-store.Post().Get(o3.Id)).Data.(*model.PostList).Posts[o3.Id]
 
-	if ro3.Message != msg {
+	if ro3a.Message != o3a.Message && ro3a.Hashtags != o3a.Hashtags {
 		t.Fatal("Failed to update/get")
 	}
 
-	ro4 := (<-store.Post().Get(o1.Id)).Data.(*model.PostList).Posts[o2.Id]
+	o4 := Must(store.Post().Save(&model.Post{
+		ChannelId: model.NewId(),
+		UserId:    model.NewId(),
+		Message:   model.NewId(),
+		Filenames: []string{"test"},
+	})).(*model.Post)
 
-	if ro4.Message != msg2 {
-		t.Fatal("Failed to update/get")
+	ro4 := (<-store.Post().Get(o4.Id)).Data.(*model.PostList).Posts[o4.Id]
+
+	o4a := &model.Post{}
+	*o4a = *ro4
+	o4a.Filenames = []string{}
+	o4a.FileIds = []string{model.NewId()}
+	if result := <-store.Post().Update(o4a, ro4); result.Err != nil {
+		t.Fatal(result.Err)
 	}
 
-	ro5 := (<-store.Post().Get(o3.Id)).Data.(*model.PostList).Posts[o3.Id]
-
-	if ro5.Message != msg3 && ro5.Hashtags != "#hashtag" {
-		t.Fatal("Failed to update/get")
+	if ro4a := Must(store.Post().Get(o4.Id)).(*model.PostList).Posts[o4.Id]; len(ro4a.Filenames) != 0 {
+		t.Fatal("Failed to clear Filenames")
+	} else if len(ro4a.FileIds) != 1 {
+		t.Fatal("Failed to set FileIds")
 	}
-
 }
 
 func TestPostStoreDelete(t *testing.T) {
@@ -136,8 +200,8 @@ func TestPostStoreDelete(t *testing.T) {
 	o1.UserId = model.NewId()
 	o1.Message = "a" + model.NewId() + "b"
 
-	etag1 := (<-store.Post().GetEtag(o1.ChannelId)).Data.(string)
-	if strings.Index(etag1, model.CurrentVersion+".0.") != 0 {
+	etag1 := (<-store.Post().GetEtag(o1.ChannelId, false)).Data.(string)
+	if strings.Index(etag1, model.CurrentVersion+".") != 0 {
 		t.Fatal("Invalid Etag")
 	}
 
@@ -160,8 +224,8 @@ func TestPostStoreDelete(t *testing.T) {
 		t.Fatal("Missing id should have failed")
 	}
 
-	etag2 := (<-store.Post().GetEtag(o1.ChannelId)).Data.(string)
-	if strings.Index(etag2, model.CurrentVersion+"."+o1.Id) != 0 {
+	etag2 := (<-store.Post().GetEtag(o1.ChannelId, false)).Data.(string)
+	if strings.Index(etag2, model.CurrentVersion+".") != 0 {
 		t.Fatal("Invalid Etag")
 	}
 }
@@ -427,7 +491,7 @@ func TestPostStoreGetPostsWtihDetails(t *testing.T) {
 	o5.RootId = o4.Id
 	o5 = (<-store.Post().Save(o5)).Data.(*model.Post)
 
-	r1 := (<-store.Post().GetPosts(o1.ChannelId, 0, 4)).Data.(*model.PostList)
+	r1 := (<-store.Post().GetPosts(o1.ChannelId, 0, 4, false)).Data.(*model.PostList)
 
 	if r1.Order[0] != o5.Id {
 		t.Fatal("invalid order")
@@ -450,6 +514,32 @@ func TestPostStoreGetPostsWtihDetails(t *testing.T) {
 	}
 
 	if r1.Posts[o1.Id].Message != o1.Message {
+		t.Fatal("Missing parent")
+	}
+
+	r2 := (<-store.Post().GetPosts(o1.ChannelId, 0, 4, true)).Data.(*model.PostList)
+
+	if r2.Order[0] != o5.Id {
+		t.Fatal("invalid order")
+	}
+
+	if r2.Order[1] != o4.Id {
+		t.Fatal("invalid order")
+	}
+
+	if r2.Order[2] != o3.Id {
+		t.Fatal("invalid order")
+	}
+
+	if r2.Order[3] != o2a.Id {
+		t.Fatal("invalid order")
+	}
+
+	if len(r2.Posts) != 6 { //the last 4, + o1 (o2a and o3's parent) + o2 (in same thread as o2a and o3)
+		t.Fatal("wrong size")
+	}
+
+	if r2.Posts[o1.Id].Message != o1.Message {
 		t.Fatal("Missing parent")
 	}
 }
@@ -617,7 +707,7 @@ func TestPostStoreGetPostsSince(t *testing.T) {
 	o5.RootId = o4.Id
 	o5 = (<-store.Post().Save(o5)).Data.(*model.Post)
 
-	r1 := (<-store.Post().GetPostsSince(o1.ChannelId, o1.CreateAt)).Data.(*model.PostList)
+	r1 := (<-store.Post().GetPostsSince(o1.ChannelId, o1.CreateAt, false)).Data.(*model.PostList)
 
 	if r1.Order[0] != o5.Id {
 		t.Fatal("invalid order")
@@ -641,6 +731,12 @@ func TestPostStoreGetPostsSince(t *testing.T) {
 
 	if r1.Posts[o1.Id].Message != o1.Message {
 		t.Fatal("Missing parent")
+	}
+
+	r2 := (<-store.Post().GetPostsSince(o1.ChannelId, o5.UpdateAt, true)).Data.(*model.PostList)
+
+	if len(r2.Order) != 0 {
+		t.Fatal("wrong size ", len(r2.Posts))
 	}
 }
 
@@ -880,15 +976,13 @@ func TestPostCountsByDay(t *testing.T) {
 	o2a = Must(store.Post().Save(o2a)).(*model.Post)
 
 	time.Sleep(1 * time.Second)
-	t.Log(t1.Id)
 
 	if r1 := <-store.Post().AnalyticsPostCountsByDay(t1.Id); r1.Err != nil {
 		t.Fatal(r1.Err)
 	} else {
 		row1 := r1.Data.(model.AnalyticsRows)[0]
 		if row1.Value != 2 {
-			t.Log(row1)
-			t.Fatal("wrong value")
+			t.Fatal(row1)
 		}
 
 		row2 := r1.Data.(model.AnalyticsRows)[1]

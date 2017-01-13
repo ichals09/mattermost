@@ -136,7 +136,7 @@ export default class PostBodyAdditionalContent extends React.Component {
     }
 
     generateStaticEmbed() {
-        if (this.props.post.type === Constants.POST_TYPE_ATTACHMENT) {
+        if (this.props.post.props && this.props.post.props.attachments) {
             return this.getSlackAttachment();
         }
 
@@ -174,7 +174,7 @@ export default class PostBodyAdditionalContent extends React.Component {
         }
 
         if (this.isLinkToggleable()) {
-            let messageWithToggle = [];
+            const messageWithToggle = [];
 
             // if message has only one line and starts with a link place toggle in this only line
             // else - place it in new line between message and embed

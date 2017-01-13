@@ -4,7 +4,6 @@
 import React from 'react';
 
 import ChannelStore from 'stores/channel_store.jsx';
-import * as Utils from 'utils/utils.jsx';
 
 import {FormattedMessage} from 'react-intl';
 
@@ -14,7 +13,9 @@ export default class InstalledOutgoingWebhook extends React.Component {
             outgoingWebhook: React.PropTypes.object.isRequired,
             onRegenToken: React.PropTypes.func.isRequired,
             onDelete: React.PropTypes.func.isRequired,
-            filter: React.PropTypes.string
+            filter: React.PropTypes.string,
+            creator: React.PropTypes.object.isRequired,
+            canChange: React.PropTypes.bool.isRequired
         };
     }
 
@@ -115,7 +116,7 @@ export default class InstalledOutgoingWebhook extends React.Component {
             );
         }
 
-        let urls = (
+        const urls = (
             <div className='item-details__row'>
                 <span className='item-details__url'>
                     <FormattedMessage
@@ -143,6 +144,33 @@ export default class InstalledOutgoingWebhook extends React.Component {
                     id='add_outgoing_webhook.triggerWordsTriggerWhenStartsWith'
                     defaultMessage='First word starts with a trigger word'
                 />
+            );
+        }
+
+        let actions = null;
+        if (this.props.canChange) {
+            actions = (
+                <div className='item-actions'>
+                    <a
+                        href='#'
+                        onClick={this.handleRegenToken}
+                    >
+                        <FormattedMessage
+                            id='installed_integrations.regenToken'
+                            defaultMessage='Regen Token'
+                        />
+                    </a>
+                    {' - '}
+                    <a
+                        href='#'
+                        onClick={this.handleDelete}
+                    >
+                        <FormattedMessage
+                            id='installed_integrations.delete'
+                            defaultMessage='Delete'
+                        />
+                    </a>
+                </div>
             );
         }
 
@@ -195,7 +223,7 @@ export default class InstalledOutgoingWebhook extends React.Component {
                                 id='installed_integrations.creation'
                                 defaultMessage='Created by {creator} on {createAt, date, full}'
                                 values={{
-                                    creator: Utils.displayUsername(outgoingWebhook.creator_id),
+                                    creator: this.props.creator.username,
                                     createAt: outgoingWebhook.create_at
                                 }}
                             />
@@ -203,27 +231,7 @@ export default class InstalledOutgoingWebhook extends React.Component {
                     </div>
                     {urls}
                 </div>
-                <div className='item-actions'>
-                    <a
-                        href='#'
-                        onClick={this.handleRegenToken}
-                    >
-                        <FormattedMessage
-                            id='installed_integrations.regenToken'
-                            defaultMessage='Regen Token'
-                        />
-                    </a>
-                    {' - '}
-                    <a
-                        href='#'
-                        onClick={this.handleDelete}
-                    >
-                        <FormattedMessage
-                            id='installed_integrations.delete'
-                            defaultMessage='Delete'
-                        />
-                    </a>
-                </div>
+                {actions}
             </div>
         );
     }

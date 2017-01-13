@@ -13,7 +13,9 @@ export default class InstalledIncomingWebhook extends React.Component {
         return {
             incomingWebhook: React.PropTypes.object.isRequired,
             onDelete: React.PropTypes.func.isRequired,
-            filter: React.PropTypes.string
+            filter: React.PropTypes.string,
+            creator: React.PropTypes.object.isRequired,
+            canChange: React.PropTypes.bool.isRequired
         };
     }
 
@@ -82,6 +84,23 @@ export default class InstalledIncomingWebhook extends React.Component {
             );
         }
 
+        let actions = null;
+        if (this.props.canChange) {
+            actions = (
+                <div className='item-actions'>
+                    <a
+                        href='#'
+                        onClick={this.handleDelete}
+                    >
+                        <FormattedMessage
+                            id='installed_integrations.delete'
+                            defaultMessage='Delete'
+                        />
+                    </a>
+                </div>
+            );
+        }
+
         return (
             <div className='backstage-list__item'>
                 <div className='item-details'>
@@ -108,24 +127,14 @@ export default class InstalledIncomingWebhook extends React.Component {
                                 id='installed_integrations.creation'
                                 defaultMessage='Created by {creator} on {createAt, date, full}'
                                 values={{
-                                    creator: Utils.displayUsername(incomingWebhook.user_id),
+                                    creator: this.props.creator.username,
                                     createAt: incomingWebhook.create_at
                                 }}
                             />
                         </span>
                     </div>
                 </div>
-                <div className='item-actions'>
-                    <a
-                        href='#'
-                        onClick={this.handleDelete}
-                    >
-                        <FormattedMessage
-                            id='installed_integrations.delete'
-                            defaultMessage='Delete'
-                        />
-                    </a>
-                </div>
+                {actions}
             </div>
         );
     }

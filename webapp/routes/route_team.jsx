@@ -7,15 +7,19 @@ import {browserHistory} from 'react-router/es6';
 
 import TeamStore from 'stores/team_store.jsx';
 import * as GlobalActions from 'actions/global_actions.jsx';
+import {loadStatusesForChannelAndSidebar} from 'actions/status_actions.jsx';
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import Constants from 'utils/constants.jsx';
 const ActionTypes = Constants.ActionTypes;
 import * as AsyncClient from 'utils/async_client.jsx';
 import Client from 'client/web_client.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
+import BrowserStore from 'stores/browser_store.jsx';
 
 import emojiRoute from 'routes/route_emoji.jsx';
 import integrationsRoute from 'routes/route_integrations.jsx';
+
+import {loadProfilesAndTeamMembersForDMSidebar} from 'actions/user_actions.jsx';
 
 function onChannelEnter(nextState, replace, callback) {
     doChannelChange(nextState, replace, callback);
@@ -27,13 +31,16 @@ function doChannelChange(state, replace, callback) {
         channel = JSON.parse(state.location.query.fakechannel);
     } else {
         channel = ChannelStore.getByName(state.params.channel);
-        if (!channel) {
-            channel = ChannelStore.getMoreByName(state.params.channel);
-        }
+
         if (!channel) {
             Client.joinChannelByName(
                 state.params.channel,
                 (data) => {
+                    AppDispatcher.handleServerAction({
+                        type: ActionTypes.RECEIVED_CHANNEL,
+                        channel: data
+                    });
+
                     GlobalActions.emitChannelClickEvent(data);
                     callback();
                 },
@@ -54,39 +61,43 @@ function doChannelChange(state, replace, callback) {
 }
 
 export function preNeedsTeam(nextState, replace, callback) {
+    if (RouteUtils.checkIfMFARequired(nextState)) {
+        browserHistory.push('/mfa/setup');
+        return;
+    }
+
     // First check to make sure you're in the current team
     // for the current url.
     const teamName = nextState.params.team;
-    var team = TeamStore.getByName(teamName);
-    const oldTeamId = TeamStore.getCurrentId();
+    const team = TeamStore.getByName(teamName);
 
     if (!team) {
         browserHistory.push('/');
         return;
     }
 
+    TeamStore.saveMyTeam(team);
+    BrowserStore.setGlobalItem('team', team.id);
+    TeamStore.emitChange();
     GlobalActions.emitCloseRightHandSide();
 
-    TeamStore.saveMyTeam(team);
-    TeamStore.emitChange();
-
-    // If the old team id is null then we will already have the direct
-    // profiles from initial load
-    if (oldTeamId != null) {
-        AsyncClient.getDirectProfiles();
+    if (nextState.location.pathname.indexOf('/channels/') > -1 ||
+        nextState.location.pathname.indexOf('/pl/') > -1) {
+        loadProfilesAndTeamMembersForDMSidebar();
+        AsyncClient.getMyTeamsUnread();
+        AsyncClient.getMyChannelMembers();
     }
 
-    var d1 = $.Deferred(); //eslint-disable-line new-cap
-    var d2 = $.Deferred(); //eslint-disable-line new-cap
-    var d3 = $.Deferred(); //eslint-disable-line new-cap
+    const d1 = $.Deferred(); //eslint-disable-line new-cap
 
     Client.getChannels(
         (data) => {
             AppDispatcher.handleServerAction({
                 type: ActionTypes.RECEIVED_CHANNELS,
-                channels: data.channels,
-                members: data.members
+                channels: data
             });
+
+            loadStatusesForChannelAndSidebar();
 
             d1.resolve();
         },
@@ -96,40 +107,23 @@ export function preNeedsTeam(nextState, replace, callback) {
         }
     );
 
-    Client.getProfiles(
-        (data) => {
-            AppDispatcher.handleServerAction({
-                type: ActionTypes.RECEIVED_PROFILES,
-                profiles: data
-            });
-
-            d2.resolve();
-        },
-        (err) => {
-            AsyncClient.dispatchError(err, 'getProfiles');
-            d2.resolve();
-        }
-    );
-
-    Client.getTeamMembers(
-        TeamStore.getCurrentId(),
-        (data) => {
-            AppDispatcher.handleServerAction({
-                type: ActionTypes.RECEIVED_MEMBERS_FOR_TEAM,
-                team_members: data
-            });
-
-            d3.resolve();
-        },
-        (err) => {
-            AsyncClient.dispatchError(err, 'getTeamMembers');
-            d3.resolve();
-        }
-    );
-
-    $.when(d1, d2, d3).done(() => {
+    $.when(d1).done(() => {
         callback();
     });
+}
+
+function selectLastChannel(nextState, replace, callback) {
+    const team = TeamStore.getByName(nextState.params.team);
+    const channelId = BrowserStore.getGlobalItem(team.id);
+    const channel = ChannelStore.getChannelById(channelId);
+
+    let channelName = 'town-square';
+    if (channel) {
+        channelName = channel.name;
+    }
+
+    replace(`/${team.name}/channels/${channelName}`);
+    callback();
 }
 
 function onPermalinkEnter(nextState, replace, callback) {
@@ -143,7 +137,7 @@ function onPermalinkEnter(nextState, replace, callback) {
 export default {
     path: ':team',
     onEnter: preNeedsTeam,
-    indexRoute: {onEnter: (nextState, replace) => replace('/' + nextState.params.team + '/channels/town-square')},
+    indexRoute: {onEnter: selectLastChannel},
     childRoutes: [
         integrationsRoute,
         emojiRoute,
@@ -157,10 +151,11 @@ export default {
                     onEnter: onChannelEnter,
                     getComponents: (location, callback) => {
                         Promise.all([
+                            System.import('components/team_sidebar/team_sidebar_controller.jsx'),
                             System.import('components/sidebar.jsx'),
                             System.import('components/channel_view.jsx')
                         ]).then(
-                        (comarr) => callback(null, {sidebar: comarr[0].default, center: comarr[1].default})
+                        (comarr) => callback(null, {team_sidebar: comarr[0].default, sidebar: comarr[1].default, center: comarr[2].default})
                         );
                     }
                 },
@@ -169,10 +164,11 @@ export default {
                     onEnter: onPermalinkEnter,
                     getComponents: (location, callback) => {
                         Promise.all([
+                            System.import('components/team_sidebar/team_sidebar_controller.jsx'),
                             System.import('components/sidebar.jsx'),
                             System.import('components/permalink_view.jsx')
                         ]).then(
-                        (comarr) => callback(null, {sidebar: comarr[0].default, center: comarr[1].default})
+                        (comarr) => callback(null, {team_sidebar: comarr[0].default, sidebar: comarr[1].default, center: comarr[2].default})
                         );
                     }
                 },
@@ -180,10 +176,11 @@ export default {
                     path: 'tutorial',
                     getComponents: (location, callback) => {
                         Promise.all([
+                            System.import('components/team_sidebar/team_sidebar_controller.jsx'),
                             System.import('components/sidebar.jsx'),
                             System.import('components/tutorial/tutorial_view.jsx')
                         ]).then(
-                        (comarr) => callback(null, {sidebar: comarr[0].default, center: comarr[1].default})
+                        (comarr) => callback(null, {team_sidebar: comarr[0].default, sidebar: comarr[1].default, center: comarr[2].default})
                         );
                     }
                 }
