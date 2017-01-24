@@ -202,12 +202,12 @@ test-server: start-docker prepare-enterprise
 	rm -f cover.out
 	echo "mode: count" > cover.out
 
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=650s -covermode=count -coverprofile=capi.out ./api || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=60s -covermode=count -coverprofile=capp.out ./app || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=60s -covermode=count -coverprofile=cmodel.out ./model || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=180s -covermode=count -coverprofile=cstore.out ./store || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=120s -covermode=count -coverprofile=cutils.out ./utils || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=120s -covermode=count -coverprofile=cweb.out ./web || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=650s -covermode=count -coverpkg=./.. -coverprofile=capi.out ./api || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=60s -covermode=count -coverpkg=./.. -coverprofile=capp.out ./app || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=60s -covermode=count -coverpkg=./.. -coverprofile=cmodel.out ./model || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=180s -covermode=count -coverpkg=./.. -coverprofile=cstore.out ./store || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=120s -covermode=count -coverpkg=./.. -coverprofile=cutils.out ./utils || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=120s -covermode=count -coverpkg=./.. -coverprofile=cweb.out ./web || exit 1
 
 	tail -n +2 capi.out >> cover.out
 	tail -n +2 capp.out >> cover.out
@@ -223,14 +223,14 @@ ifeq ($(BUILD_ENTERPRISE_READY),true)
 	rm -f ecover.out
 	echo "mode: count" > ecover.out
 
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/ldap && ./ldap.test -test.v -test.timeout=120s -test.coverprofile=cldap.out || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/compliance && ./compliance.test -test.v -test.timeout=120s -test.coverprofile=ccompliance.out || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/mfa && ./mfa.test -test.v -test.timeout=120s -test.coverprofile=cmfa.out || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/emoji && ./emoji.test -test.v -test.timeout=120s -test.coverprofile=cemoji.out || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/saml && ./saml.test -test.v -test.timeout=60s -test.coverprofile=csaml.out || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/cluster && ./cluster.test -test.v -test.timeout=60s -test.coverprofile=ccluster.out || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/metrics && ./metrics.test -test.v -test.timeout=60s -test.coverprofile=cmetrics.out || exit 1
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -c ./enterprise/account_migration && ./account_migration.test -test.v -test.timeout=60s -test.coverprofile=caccount_migration.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -coverpkg=./.. -covermode=count -c ./enterprise/ldap && ./ldap.test -test.v -test.timeout=120s -test.coverprofile=cldap.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -coverpkg=./.. -covermode=count -c ./enterprise/compliance && ./compliance.test -test.v -test.timeout=120s -test.coverprofile=ccompliance.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -coverpkg=./.. -covermode=count -c ./enterprise/mfa && ./mfa.test -test.v -test.timeout=120s -test.coverprofile=cmfa.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -coverpkg=./.. -covermode=count -c ./enterprise/emoji && ./emoji.test -test.v -test.timeout=120s -test.coverprofile=cemoji.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -coverpkg=./.. -covermode=count -c ./enterprise/saml && ./saml.test -test.v -test.timeout=60s -test.coverprofile=csaml.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -coverpkg=./.. -covermode=count -c ./enterprise/cluster && ./cluster.test -test.v -test.timeout=60s -test.coverprofile=ccluster.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -coverpkg=./.. -covermode=count -c ./enterprise/metrics && ./metrics.test -test.v -test.timeout=60s -test.coverprofile=cmetrics.out || exit 1
+	$(GO) test $(GOFLAGS) -run=$(TESTS) -coverpkg=./.. -covermode=count -c ./enterprise/account_migration && ./account_migration.test -test.v -test.timeout=60s -test.coverprofile=caccount_migration.out || exit 1
 
 	tail -n +2 cldap.out >> ecover.out
 	tail -n +2 ccompliance.out >> ecover.out
