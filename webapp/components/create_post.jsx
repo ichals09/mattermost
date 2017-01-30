@@ -182,6 +182,10 @@ export default class CreatePost extends React.Component {
                     this.forceUpdate();
                 }
 
+                if (err.id === 'api.post.create_post.town_square_read_only') {
+                    PostStore.clearPendingPosts(post.channel_id);
+                }
+
                 this.setState({
                     submitting: false
                 });

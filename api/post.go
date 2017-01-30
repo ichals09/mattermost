@@ -82,6 +82,23 @@ func createPost(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if channel.Name == model.DEFAULT_CHANNEL && !HasPermissionToContext(c, model.PERMISSION_MANAGE_SYSTEM) {
+		c.Err = model.NewLocAppError("createPost", "api.post.create_post.town_square_read_only", nil, "")
+		SendEphemeralPost(
+			c.TeamId,
+			c.Session.UserId,
+			&model.Post{
+				ChannelId: channel.Id,
+				ParentId:  post.ParentId,
+				RootId:    post.RootId,
+				UserId:    c.Session.UserId,
+				Message:   c.T("api.post.read_only_town_square"),
+				CreateAt:  model.GetMillis() + 1,
+			},
+		)
+		return
+	}
+
 	if rp, err := CreatePost(c, post, true); err != nil {
 		c.Err = err
 
