@@ -12,6 +12,7 @@ import * as GlobalActions from 'actions/global_actions.jsx';
 import * as Websockets from 'actions/websocket_actions.jsx';
 import BrowserStore from 'stores/browser_store.jsx';
 import * as I18n from 'i18n/i18n.jsx';
+import Client from 'client/web_client.jsx';
 
 // Import our styles
 import 'bootstrap-colorpicker/dist/css/bootstrap-colorpicker.css';
@@ -21,6 +22,10 @@ import 'katex/dist/katex.min.css';
 
 // Import the root of our routing tree
 import rRoot from 'routes/route_root.jsx';
+
+global.Plugins = {
+    postContent: []
+};
 
 PDFJS.disableWorker = true;
 
@@ -45,6 +50,12 @@ function preRenderSetup(callwhendone) {
             window.ErrorStore.emitChange();
         }
     };
+
+    Client.getPlugin(
+        () => {
+            console.log(global.Plugins);
+        }
+    );
 
     var d1 = $.Deferred(); //eslint-disable-line new-cap
 
