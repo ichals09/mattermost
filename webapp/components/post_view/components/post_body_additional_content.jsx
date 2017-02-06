@@ -18,6 +18,7 @@ export default class PostBodyAdditionalContent extends React.Component {
         this.getSlackAttachment = this.getSlackAttachment.bind(this);
         this.generateToggleableEmbed = this.generateToggleableEmbed.bind(this);
         this.generateStaticEmbed = this.generateStaticEmbed.bind(this);
+        this.generatePluginEmbed = this.generatePluginEmbed.bind(this);
         this.toggleEmbedVisibility = this.toggleEmbedVisibility.bind(this);
         this.isLinkToggleable = this.isLinkToggleable.bind(this);
         this.handleLinkLoadError = this.handleLinkLoadError.bind(this);
@@ -151,59 +152,35 @@ export default class PostBodyAdditionalContent extends React.Component {
         return null;
     }
 
-    render() {
-        if (this.isLinkToggleable() && !this.state.linkLoadError) {
-            const messageWithToggle = [];
-
-            // if message has only one line and starts with a link place toggle in this only line
-            // else - place it in new line between message and embed
-            const prependToggle = (/^\s*https?:\/\/.*$/).test(this.props.post.message);
-            messageWithToggle.push(
-                <a
-                    className={`post__embed-visibility ${prependToggle ? 'pull-left' : ''}`}
-                    data-expanded={this.state.embedVisible}
-                    aria-label='Toggle Embed Visibility'
-                    onClick={this.toggleEmbedVisibility}
-                />
-            );
-
-            if (prependToggle) {
-                messageWithToggle.push(this.props.message);
-            } else {
-                messageWithToggle.unshift(this.props.message);
+    generatePluginEmbed() {
+        const embeds = [];
+        const plugins = global.Plugins.postContent;
+        for (let i = 0; i < plugins.length; i++) {
+            const embed = plugins[i](this.props.post);
+            if (embed != null) {
+                embeds.push(embed);
             }
-
-            let toggleableEmbed;
-            if (this.state.embedVisible) {
-                toggleableEmbed = (
-                    <div
-                        className='post__embed-container'
-                    >
-                        {this.generateToggleableEmbed()}
-                    </div>
-                );
-            }
-
-            return (
-                <div>
-                    {messageWithToggle}
-                    {toggleableEmbed}
-                </div>
-            );
         }
 
-        const staticEmbed = this.generateStaticEmbed();
+        return embeds;
+    }
 
-        if (staticEmbed) {
+    render() {
+        const pluginEmbeds = this.generatePluginEmbed();
+
+        if (pluginEmbeds.length === 0) {
             return (
                 <div>
                     {this.props.message}
-                    {staticEmbed}
                 </div>
             );
         }
 
-        return this.props.message;
+        return (
+            <div>
+                {pluginEmbeds}
+            </div>
+        );
     }
 }
 

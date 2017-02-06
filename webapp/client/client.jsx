@@ -218,6 +218,18 @@ export default class Client {
         }
     }
 
+    getPlugin(success) {
+        var script = document.createElement('script');
+        script.src = `${this.url}/static/plugins/jirabundle.js`;
+        script.onload = () => {
+            if (success) {
+                success();
+            }
+        };
+
+        document.head.appendChild(script);
+    }
+
     // General Routes Section
 
     getClientConfig(success, error) {
