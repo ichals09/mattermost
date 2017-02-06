@@ -21,6 +21,7 @@ import (
 	"github.com/mattermost/platform/einterfaces"
 	"github.com/mattermost/platform/manualtesting"
 	"github.com/mattermost/platform/model"
+	"github.com/mattermost/platform/plugininterface"
 	"github.com/mattermost/platform/utils"
 	"github.com/mattermost/platform/web"
 	"github.com/spf13/cobra"
@@ -70,6 +71,8 @@ func runServer(configFileLocation string) {
 	}
 
 	cmdUpdateDb30()
+
+	plugininterface.InitPlugins()
 
 	app.NewServer()
 	app.InitStores()

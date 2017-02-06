@@ -11,6 +11,7 @@ import (
 	"github.com/dyatlov/go-opengraph/opengraph"
 	"github.com/mattermost/platform/einterfaces"
 	"github.com/mattermost/platform/model"
+	"github.com/mattermost/platform/plugininterface"
 	"github.com/mattermost/platform/store"
 	"github.com/mattermost/platform/utils"
 )
@@ -84,6 +85,8 @@ func CreatePost(post *model.Post, teamId string, triggerWebhooks bool) (*model.P
 
 	post.Hashtags, _ = model.ParseHashtags(post.Message)
 
+	post.Message = plugininterface.ModifyPostText(post.Message)
+
 	var rpost *model.Post
 	if result := <-Srv.Store.Post().Save(post); result.Err != nil {
 		return nil, result.Err
@@ -109,6 +112,8 @@ func CreatePost(post *model.Post, teamId string, triggerWebhooks bool) (*model.P
 			einterfaces.GetMetricsInterface().IncrementPostFileAttachment(len(post.FileIds))
 		}
 	}
+
+	plugininterface.HandlePostedEvent(post.Id, post.Message)
 
 	if err := handlePostEvents(rpost, teamId, triggerWebhooks); err != nil {
 		return nil, err

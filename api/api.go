@@ -10,6 +10,7 @@ import (
 	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/einterfaces"
 	"github.com/mattermost/platform/model"
+	"github.com/mattermost/platform/plugininterface"
 	"github.com/mattermost/platform/utils"
 
 	_ "github.com/nicksnyder/go-i18n/i18n"
@@ -54,6 +55,10 @@ type Routes struct {
 	Emoji *mux.Router // 'api/v3/emoji'
 
 	Webrtc *mux.Router // 'api/v3/webrtc'
+
+	Plugin *mux.Router // 'api/v3/plugin'
+
+	PluginExtension *mux.Router // 'api/v3/plugin/extension'
 }
 
 var BaseRoutes *Routes
@@ -90,6 +95,8 @@ func InitApi() {
 	BaseRoutes.Public = BaseRoutes.ApiRoot.PathPrefix("/public").Subrouter()
 	BaseRoutes.Emoji = BaseRoutes.ApiRoot.PathPrefix("/emoji").Subrouter()
 	BaseRoutes.Webrtc = BaseRoutes.ApiRoot.PathPrefix("/webrtc").Subrouter()
+	BaseRoutes.Plugin = BaseRoutes.ApiRoot.PathPrefix("/plugin").Subrouter()
+	BaseRoutes.PluginExtension = BaseRoutes.Plugin.PathPrefix("/extension").Subrouter()
 
 	InitUser()
 	InitTeam()
@@ -109,6 +116,8 @@ func InitApi() {
 	InitWebrtc()
 	InitReaction()
 	InitDeprecated()
+
+	plugininterface.RegisterPluginRoutes(BaseRoutes.PluginExtension)
 
 	// 404 on any api route before web.go has a chance to serve it
 	app.Srv.Router.Handle("/api/{anything:.*}", http.HandlerFunc(Handle404))
