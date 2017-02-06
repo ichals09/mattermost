@@ -156,9 +156,10 @@ export default class PostBodyAdditionalContent extends React.Component {
         const embeds = [];
         const plugins = global.Plugins.postContent;
         for (let i = 0; i < plugins.length; i++) {
-            const embed = plugins[i](this.props.post);
-            if (embed != null) {
-                embeds.push(embed);
+            const message = this.props.post.message;
+            const index = message.indexOf('PLT-');
+            if (index !== -1) {
+                embeds.push(plugins[i](this.props.post));
             }
         }
 
@@ -167,6 +168,7 @@ export default class PostBodyAdditionalContent extends React.Component {
 
     render() {
         const pluginEmbeds = this.generatePluginEmbed();
+        console.log(pluginEmbeds);
 
         if (pluginEmbeds.length === 0) {
             return (
