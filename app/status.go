@@ -142,13 +142,6 @@ func SetStatusOnline(userId string, sessionId string, manual bool) {
 			l4g.Error(utils.T("api.status.save_status.error"), userId, result.Err)
 		}
 	}
-
-	if broadcast {
-		event := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_STATUS_CHANGE, "", "", status.UserId, nil)
-		event.Add("status", model.STATUS_ONLINE)
-		event.Add("user_id", status.UserId)
-		go Publish(event)
-	}
 }
 
 func SetStatusOffline(userId string, manual bool) {
@@ -164,11 +157,6 @@ func SetStatusOffline(userId string, manual bool) {
 	if result := <-Srv.Store.Status().SaveOrUpdate(status); result.Err != nil {
 		l4g.Error(utils.T("api.status.save_status.error"), userId, result.Err)
 	}
-
-	event := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_STATUS_CHANGE, "", "", status.UserId, nil)
-	event.Add("status", model.STATUS_OFFLINE)
-	event.Add("user_id", status.UserId)
-	go Publish(event)
 }
 
 func SetStatusAwayIfNeeded(userId string, manual bool) {
@@ -201,11 +189,6 @@ func SetStatusAwayIfNeeded(userId string, manual bool) {
 	if result := <-Srv.Store.Status().SaveOrUpdate(status); result.Err != nil {
 		l4g.Error(utils.T("api.status.save_status.error"), userId, result.Err)
 	}
-
-	event := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_STATUS_CHANGE, "", "", status.UserId, nil)
-	event.Add("status", model.STATUS_AWAY)
-	event.Add("user_id", status.UserId)
-	go Publish(event)
 }
 
 func GetStatusFromCache(userId string) *model.Status {

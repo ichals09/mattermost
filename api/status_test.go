@@ -166,41 +166,6 @@ func TestStatuses(t *testing.T) {
 		}
 	}
 
-	stop := make(chan bool)
-	onlineHit := false
-	awayHit := false
-
-	go func() {
-		for {
-			select {
-			case resp := <-WebSocketClient.EventChannel:
-				if resp.Event == model.WEBSOCKET_EVENT_STATUS_CHANGE && resp.Data["user_id"].(string) == th.BasicUser.Id {
-					status := resp.Data["status"].(string)
-					if status == model.STATUS_ONLINE {
-						onlineHit = true
-					} else if status == model.STATUS_AWAY {
-						awayHit = true
-					}
-				}
-			case <-stop:
-				return
-			}
-		}
-	}()
-
-	time.Sleep(500 * time.Millisecond)
-
-	stop <- true
-
-	if !onlineHit {
-		t.Fatal("didn't get online event")
-	}
-	if !awayHit {
-		t.Fatal("didn't get away event")
-	}
-
-	time.Sleep(500 * time.Millisecond)
-
 	WebSocketClient.Close()
 }
 

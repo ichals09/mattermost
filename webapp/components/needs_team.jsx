@@ -13,6 +13,7 @@ import UserStore from 'stores/user_store.jsx';
 import PreferenceStore from 'stores/preference_store.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
 import * as GlobalActions from 'actions/global_actions.jsx';
+import * as ChannelActions from 'actions/channel_actions.jsx';
 import {startPeriodicStatusUpdates, stopPeriodicStatusUpdates} from 'actions/status_actions.jsx';
 import Constants from 'utils/constants.jsx';
 const TutorialSteps = Constants.TutorialSteps;
@@ -98,9 +99,11 @@ export default class NeedsTeam extends React.Component {
         // Set up tracking for whether the window is active
         window.isActive = true;
         $(window).on('focus', () => {
-            AsyncClient.viewChannel();
+            ChannelActions.viewChannel();
             ChannelStore.resetCounts(ChannelStore.getCurrentId());
             ChannelStore.emitChange();
+
+            UserStore.setStatus(UserStore.getCurrentId(), 'online');
 
             window.isActive = true;
             if (new Date().getTime() - this.blurTime > UNREAD_CHECK_TIME_MILLISECONDS) {
@@ -112,7 +115,7 @@ export default class NeedsTeam extends React.Component {
             window.isActive = false;
             this.blurTime = new Date().getTime();
             if (UserStore.getCurrentUser()) {
-                AsyncClient.viewChannel('');
+                ChannelActions.viewChannel('');
             }
         });
 

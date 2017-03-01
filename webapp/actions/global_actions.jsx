@@ -14,9 +14,9 @@ import SearchStore from 'stores/search_store.jsx';
 
 import {handleNewPost, loadPosts, loadPostsBefore, loadPostsAfter} from 'actions/post_actions.jsx';
 import {loadProfilesAndTeamMembersForDMSidebar} from 'actions/user_actions.jsx';
-import {loadChannelsForCurrentUser} from 'actions/channel_actions.jsx';
 import {stopPeriodicStatusUpdates} from 'actions/status_actions.jsx';
 import * as WebsocketActions from 'actions/websocket_actions.jsx';
+import * as ChannelActions from 'actions/channel_actions.jsx';
 import {trackEvent} from 'actions/diagnostics_actions.jsx';
 
 import Constants from 'utils/constants.jsx';
@@ -51,7 +51,7 @@ export function emitChannelClickEvent(channel) {
 
         getMyChannelMembersPromise.then(() => {
             AsyncClient.getChannelStats(chan.id, true);
-            AsyncClient.viewChannel(chan.id, oldChannelId);
+            ChannelActions.viewChannel(chan.id, oldChannelId);
             loadPosts(chan.id);
         });
 
@@ -165,7 +165,7 @@ export function doFocusPost(channelId, postId, data) {
         channelId,
         post_list: data
     });
-    loadChannelsForCurrentUser();
+    ChannelActions.loadChannelsForCurrentUser();
     AsyncClient.getMoreChannels(true);
     AsyncClient.getChannelStats(channelId);
     loadPostsBefore(postId, 0, Constants.POST_FOCUS_CONTEXT_RADIUS, true);
@@ -173,7 +173,7 @@ export function doFocusPost(channelId, postId, data) {
 }
 
 export function emitPostFocusEvent(postId, onSuccess) {
-    loadChannelsForCurrentUser();
+    ChannelActions.loadChannelsForCurrentUser();
     Client.getPermalinkTmp(
         postId,
         (data) => {

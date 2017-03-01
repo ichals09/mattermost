@@ -219,7 +219,6 @@ export const SocketEvents = {
     TYPING: 'typing',
     PREFERENCE_CHANGED: 'preference_changed',
     EPHEMERAL_MESSAGE: 'ephemeral_message',
-    STATUS_CHANGED: 'status_change',
     HELLO: 'hello',
     WEBRTC: 'webrtc',
     REACTION_ADDED: 'reaction_added',

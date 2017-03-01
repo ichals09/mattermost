@@ -16,6 +16,7 @@ import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import Client from 'client/web_client.jsx';
 import WebSocketClient from 'client/web_websocket_client.jsx';
 import * as WebrtcActions from './webrtc_actions.jsx';
+import * as ChannelActions from './channel_actions.jsx';
 import * as Utils from 'utils/utils.jsx';
 import * as AsyncClient from 'utils/async_client.jsx';
 import {getSiteURL} from 'utils/url.jsx';
@@ -158,10 +159,6 @@ function handleEvent(msg) {
         handleUserTypingEvent(msg);
         break;
 
-    case SocketEvents.STATUS_CHANGED:
-        handleStatusChangedEvent(msg);
-        break;
-
     case SocketEvents.HELLO:
         handleHelloEvent(msg);
         break;
@@ -204,7 +201,7 @@ function handlePostEditEvent(msg) {
     // Update channel state
     if (ChannelStore.getCurrentId() === msg.broadcast.channel_id) {
         if (window.isActive) {
-            AsyncClient.viewChannel();
+            ChannelActions.viewChannel();
         }
     }
 }
@@ -312,10 +309,6 @@ function handleUserTypingEvent(msg) {
     if (UserStore.getStatus(msg.data.user_id) !== UserStatuses.ONLINE) {
         StatusActions.loadStatusesByIds([msg.data.user_id]);
     }
-}
-
-function handleStatusChangedEvent(msg) {
-    UserStore.setStatus(msg.data.user_id, msg.data.status);
 }
 
 function handleHelloEvent(msg) {

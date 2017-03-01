@@ -14,7 +14,7 @@ import BrowserStore from 'stores/browser_store.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
 import UserStore from 'stores/user_store.jsx';
 import * as I18n from 'i18n/i18n.jsx';
-import * as AsyncClient from 'utils/async_client.jsx';
+import * as ChannelActions from 'actions/channel_actions.jsx';
 
 // Import our styles
 import 'bootstrap-colorpicker/dist/css/bootstrap-colorpicker.css';
@@ -62,7 +62,7 @@ function preRenderSetup(callwhendone) {
          () => {
              BrowserStore.setLastServerVersion('');
              if (UserStore.getCurrentUser()) {
-                 AsyncClient.viewChannel('', ChannelStore.getCurrentId() || '');
+                 ChannelActions.viewChannel('', ChannelStore.getCurrentId() || '');
              }
              Websockets.close();
          }

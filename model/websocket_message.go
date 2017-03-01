@@ -24,7 +24,6 @@ const (
 	WEBSOCKET_EVENT_USER_REMOVED       = "user_removed"
 	WEBSOCKET_EVENT_PREFERENCE_CHANGED = "preference_changed"
 	WEBSOCKET_EVENT_EPHEMERAL_MESSAGE  = "ephemeral_message"
-	WEBSOCKET_EVENT_STATUS_CHANGE      = "status_change"
 	WEBSOCKET_EVENT_HELLO              = "hello"
 	WEBSOCKET_EVENT_WEBRTC             = "webrtc"
 	WEBSOCKET_AUTHENTICATION_CHALLENGE = "authentication_challenge"

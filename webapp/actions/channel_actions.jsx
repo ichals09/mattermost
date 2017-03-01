@@ -20,6 +20,8 @@ import {Preferences, ActionTypes} from 'utils/constants.jsx';
 
 import {browserHistory} from 'react-router/es6';
 
+const STATUS_TIMEOUT_MILLISECONDS = 300000; // 5 minutes
+
 export function goToChannel(channel) {
     if (channel.fake) {
         openDirectChannelToUser(
@@ -62,7 +64,7 @@ export function executeCommand(message, args, success, error) {
 
 export function setChannelAsRead(channelIdParam) {
     const channelId = channelIdParam || ChannelStore.getCurrentId();
-    AsyncClient.viewChannel();
+    viewChannel();
     ChannelStore.resetCounts(channelId);
     ChannelStore.emitChange();
     if (channelId === ChannelStore.getCurrentId()) {
@@ -493,4 +495,18 @@ export function deleteChannel(channelId, success, error) {
                 }
             }
         );
+}
+
+let statusTimeout = null;
+
+export function viewChannel(channelId = ChannelStore.getCurrentId(), prevChannelId = '', time = 0) {
+    if (statusTimeout != null) {
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
+    }
+    statusTimeout = setTimeout(() => {
+        UserStore.setStatus(UserStore.getCurrentId(), 'away');
+        statusTimeout = null;
+    }, STATUS_TIMEOUT_MILLISECONDS);
+    AsyncClient.viewChannel(channelId, prevChannelId, time);
 }

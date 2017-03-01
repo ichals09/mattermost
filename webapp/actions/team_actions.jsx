@@ -10,6 +10,7 @@ const ActionTypes = Constants.ActionTypes;
 import * as AsyncClient from 'utils/async_client.jsx';
 import Client from 'client/web_client.jsx';
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
+import * as ChannelActions from './channel_actions.jsx';
 
 import {browserHistory} from 'react-router/es6';
 
@@ -147,6 +148,6 @@ export function inviteMembers(data, success, error) {
 }
 
 export function switchTeams(url) {
-    AsyncClient.viewChannel();
+    ChannelActions.viewChannel();
     browserHistory.push(url);
 }
