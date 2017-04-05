@@ -18,6 +18,7 @@ import (
 
 type Hub struct {
 	connections    []*WebConn
+	count          int64
 	register       chan *WebConn
 	unregister     chan *WebConn
 	broadcast      chan *model.WebSocketEvent
@@ -41,14 +42,12 @@ func NewWebHub() *Hub {
 }
 
 func TotalWebsocketConnections() int {
-	// This is racy, but it's only used for reporting information
-	// so it's probably OK
-	count := 0
+	count := int64(0)
 	for _, hub := range hubs {
-		count = count + len(hub.connections)
+		count = count + atomic.LoadInt64(&hub.count)
 	}
 
-	return count
+	return int(count)
 }
 
 func HubStart() {
@@ -250,6 +249,7 @@ func (h *Hub) Start() {
 			select {
 			case webCon := <-h.register:
 				h.connections = append(h.connections, webCon)
+				atomic.StoreInt64(&h.count, int64(len(h.connections)))
 
 			case webCon := <-h.unregister:
 				userId := webCon.UserId
