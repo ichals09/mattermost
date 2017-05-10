@@ -73,6 +73,9 @@ func CreatePostAsUser(post *model.Post) (*model.Post, *model.AppError) {
 			err.StatusCode = http.StatusBadRequest
 		}
 
+		l4g.Info("app.CreatePost() returned an error")
+		l4g.Error("error: ", err)
+
 		return nil, err
 	} else {
 		// Update the LastViewAt only if the post does not have from_webhook prop set (eg. Zapier app)
@@ -120,6 +123,8 @@ func CreatePost(post *model.Post, teamId string, triggerWebhooks bool) (*model.P
 
 	var rpost *model.Post
 	if result := <-Srv.Store.Post().Save(post); result.Err != nil {
+		l4g.Info("app.CreatePost(): Store.Post().Save() returned an error")
+		l4g.Error("error: ", result.Err)
 		return nil, result.Err
 	} else {
 		rpost = result.Data.(*model.Post)
@@ -145,6 +150,8 @@ func CreatePost(post *model.Post, teamId string, triggerWebhooks bool) (*model.P
 	}
 
 	if err := handlePostEvents(rpost, teamId, triggerWebhooks); err != nil {
+		l4g.Info("app.CreatePost(): handlePostEvents returned an error")
+		l4g.Error("error: ", err)
 		return nil, err
 	}
 
@@ -162,6 +169,8 @@ func handlePostEvents(post *model.Post, teamId string, triggerWebhooks bool) *mo
 	var team *model.Team
 	if tchan != nil {
 		if result := <-tchan; result.Err != nil {
+			l4g.Info("app.handlePostEvents(): Store.Team().Get() returned an error")
+			l4g.Error("error: ", result.Err)
 			return result.Err
 		} else {
 			team = result.Data.(*model.Team)
@@ -173,6 +182,8 @@ func handlePostEvents(post *model.Post, teamId string, triggerWebhooks bool) *mo
 
 	var channel *model.Channel
 	if result := <-cchan; result.Err != nil {
+		l4g.Info("app.handlePostEvents(): Store.Channel().Get() returned an error")
+		l4g.Error("error: ", result.Err)
 		return result.Err
 	} else {
 		channel = result.Data.(*model.Channel)
@@ -183,12 +194,16 @@ func handlePostEvents(post *model.Post, teamId string, triggerWebhooks bool) *mo
 
 	var user *model.User
 	if result := <-uchan; result.Err != nil {
+		l4g.Info("app.handlePostEvents(): Store.User().Get() returned an error")
+		l4g.Error("error: ", result.Err)
 		return result.Err
 	} else {
 		user = result.Data.(*model.User)
 	}
 
 	if _, err := SendNotifications(post, team, channel, user); err != nil {
+		l4g.Info("app.handlePostEvents(): SendNotifications() returned an error")
+		l4g.Error("error: ", err)
 		return err
 	}
 
