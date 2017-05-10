@@ -43,9 +43,11 @@ func InitPost() {
 }
 
 func createPost(c *Context, w http.ResponseWriter, r *http.Request) {
+	l4g.Info("api.createPost() called")
 	post := model.PostFromJson(r.Body)
 	if post == nil {
 		c.SetInvalidParam("createPost", "post")
+		l4g.Info("api.createPost() invalid param")
 		return
 	}
 
@@ -53,6 +55,7 @@ func createPost(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	if !app.SessionHasPermissionToChannel(c.Session, post.ChannelId, model.PERMISSION_CREATE_POST) {
 		c.SetPermissionError(model.PERMISSION_CREATE_POST)
+		l4g.Info("api.createPost() permission error")
 		return
 	}
 
@@ -62,10 +65,12 @@ func createPost(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	rp, err := app.CreatePostAsUser(post)
 	if err != nil {
+		l4g.Info("api.createPost() CreatePostAsUser error")
 		c.Err = err
 		return
 	}
 
+	l4g.Info("api.createPost() success?!")
 	w.Write([]byte(rp.ToJson()))
 }
 
