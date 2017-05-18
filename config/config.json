@@ -275,6 +275,9 @@
         "TurnSharedKey": ""
     },
     "DataRetentionSettings": {
-        "Enable": false
+        "Enable": false,
+        "RunAtHour": 2,
+        "PostRetentionPeriodInDays": 0,
+        "FileRetentionPeriodInDays": 0
     }
 }

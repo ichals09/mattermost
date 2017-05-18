@@ -110,6 +110,8 @@ const (
 	WEBRTC_SETTINGS_DEFAULT_TURN_URI = ""
 
 	ANALYTICS_SETTINGS_DEFAULT_MAX_USERS_FOR_STATISTICS = 2500
+
+	DATA_RETENTION_SETTINGS_DEFAULT_RUN_AT_HOUR = 2 // 2 am server time
 )
 
 type ServiceSettings struct {
@@ -411,7 +413,10 @@ type ElasticSearchSettings struct {
 }
 
 type DataRetentionSettings struct {
-	Enable *bool
+	Enable              *bool
+	RunAtHour           *int
+	PostRetentionPeriod *int
+	FileRetentionPeriod *int
 }
 
 type Config struct {
@@ -1267,6 +1272,21 @@ func (o *Config) SetDefaults() {
 		*o.DataRetentionSettings.Enable = false
 	}
 
+	if o.DataRetentionSettings.RunAtHour == nil {
+		o.DataRetentionSettings.RunAtHour = new(int)
+		*o.DataRetentionSettings.RunAtHour = DATA_RETENTION_SETTINGS_DEFAULT_RUN_AT_HOUR
+	}
+
+	if o.DataRetentionSettings.PostRetentionPeriod == nil {
+		o.DataRetentionSettings.PostRetentionPeriod = new(int)
+		*o.DataRetentionSettings.PostRetentionPeriod = 0
+	}
+
+	if o.DataRetentionSettings.FileRetentionPeriod == nil {
+		o.DataRetentionSettings.FileRetentionPeriod = new(int)
+		*o.DataRetentionSettings.FileRetentionPeriod = 0
+	}
+
 	o.defaultWebrtcSettings()
 }
 
@@ -1506,6 +1526,24 @@ func (o *Config) IsValid() *AppError {
 
 	if *o.ElasticSearchSettings.EnableSearching && !*o.ElasticSearchSettings.EnableIndexing {
 		return NewLocAppError("Config.IsValid", "model.config.is_valid.elastic_search.enable_searching.app_error", nil, "")
+	}
+
+	if *o.DataRetentionSettings.RunAtHour < 0 || *o.DataRetentionSettings.RunAtHour > 23 {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.data_retention_run_at_hour.app_error", nil, "")
+	}
+
+	if *o.DataRetentionSettings.PostRetentionPeriod < 0 {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.data_retention_post_retention_period.app_error", nil, "")
+	}
+
+	if *o.DataRetentionSettings.FileRetentionPeriod < 0 {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.data_retention_file_retention_period.app_error", nil, "")
+	}
+
+	if *o.DataRetentionSettings.PostRetentionPeriod != 0 {
+		if *o.DataRetentionSettings.FileRetentionPeriod == 0 || *o.DataRetentionSettings.PostRetentionPeriod < *o.DataRetentionSettings.FileRetentionPeriod {
+			return NewLocAppError("Config.IsValid", "model.config.is_valid.data_retention_file_retention_longer_than_post_retention.app_error", nil, "")
+		}
 	}
 
 	return nil

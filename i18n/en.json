@@ -3912,6 +3912,22 @@
     "translation": "Unable to enable email batching when clustering is enabled."
   },
   {
+    "id": "model.config.is_valid.data_retention_file_retention_longer_than_post_retention.app_error",
+    "translation": "Invalid post and file retention periods. Post retention period must be longer than file retention period."
+  },
+  {
+    "id": "model.config.is_valid.data_retention_file_retention_period_in_days.app_error",
+    "translation": "Invalid file retention period. Must be a positive number or zero to disable."
+  },
+  {
+    "id": "model.config.is_valid.data_retention_post_retention_period_in_days.app_error",
+    "translation": "Invalid post retention period. Must be a positive number or zero to disable."
+  },
+  {
+    "id": "model.config.is_valid.data_retention_run_at_hour.app_error",
+    "translation": "Invalid scheduled time for data retention. Must be a number between zero and 23 representing an hour on a 24 hour clock."
+  },
+  {
     "id": "model.config.is_valid.email_batching_buffer_size.app_error",
     "translation": "Invalid email batching buffer size for email settings.  Must be zero or a positive number."
   },
