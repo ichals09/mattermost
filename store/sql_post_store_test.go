@@ -781,6 +781,65 @@ func TestPostStoreGetPostsSince(t *testing.T) {
 	}
 }
 
+func TestPostStoreGetAllPostsBeforeTime(t *testing.T) {
+	Setup()
+
+	// Let's just assume this is older than every other post in the system
+	const createAt int64 = 10000
+	const numPosts = 30
+
+	posts := make([]*model.Post, numPosts, numPosts)
+
+	// Create 30 posts starting with the oldest one first
+	for i := 0; i < numPosts; i++ {
+		post := &model.Post{
+			CreateAt:  createAt - numPosts + int64(i),
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+		}
+
+		// "Delete" a few to make sure those show up in the query too
+		if i%5 == 0 {
+			post.DeleteAt = createAt
+		}
+
+		posts[i] = Must(store.Post().Save(post)).(*model.Post)
+		defer func(index int) {
+			<-store.Post().(*SqlPostStore).permanentDelete(posts[index].Id)
+		}(i)
+	}
+
+	if result := <-store.Post().GetAllPostsBeforeTime(posts[0].CreateAt-1, 0, 100); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if received := result.Data.([]*model.Post); len(received) != 0 {
+		t.Fatal("should've received no posts before the ones we created")
+	}
+
+	if result := <-store.Post().GetAllPostsBeforeTime(createAt, 0, numPosts+20); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if received := result.Data.([]*model.Post); len(received) != numPosts {
+		t.Fatal("should've received all posts we created")
+	} else if received[0].Id != posts[0].Id || received[1].Id != posts[1].Id || received[29].Id != posts[29].Id {
+		t.Fatal("should've received oldest posts first")
+	}
+
+	if result := <-store.Post().GetAllPostsBeforeTime(createAt, 0, 15); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if received := result.Data.([]*model.Post); len(received) != 15 {
+		t.Fatal("should've received first 15 posts we created")
+	} else if received[0].Id != posts[0].Id || received[1].Id != posts[1].Id || received[14].Id != posts[14].Id {
+		t.Fatal("should've received oldest posts first when using limit")
+	}
+
+	if result := <-store.Post().GetAllPostsBeforeTime(createAt, 5, 15); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if received := result.Data.([]*model.Post); len(received) != 15 {
+		t.Fatal("should've received posts 5 to 20 that we created")
+	} else if received[0].Id != posts[5].Id || received[1].Id != posts[6].Id || received[14].Id != posts[19].Id {
+		t.Fatal("should've received oldest posts first when using offset")
+	}
+}
+
 func TestPostStoreSearch(t *testing.T) {
 	Setup()
 

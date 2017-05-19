@@ -726,6 +726,38 @@ func (s SqlPostStore) GetPostsSince(channelId string, time int64, allowFromCache
 	return storeChannel
 }
 
+func (s SqlPostStore) GetAllPostsBeforeTime(time int64, offset int, limit int) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		var posts []*model.Post
+		if _, err := s.GetReplica().Select(&posts,
+			`SELECT
+				*
+			FROM
+				Posts
+			WHERE
+				CreateAt < :Time
+			ORDER BY
+				CreateAt
+			LIMIT
+				:Limit
+			OFFSET
+				:Offset`, map[string]interface{}{"Time": time, "Offset": offset, "Limit": limit}); err != nil {
+			result.Err = model.NewAppError("SqlPostStore.GetAllPostsBefore", "store.sql_post.get_all_posts_before.app_error", nil, "", http.StatusInternalServerError)
+		} else {
+			result.Data = posts
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
 func (s SqlPostStore) GetPostsBefore(channelId string, postId string, numPosts int, offset int) StoreChannel {
 	return s.getPostsAround(channelId, postId, numPosts, offset, true)
 }
