@@ -125,3 +125,29 @@ func writeFileLocally(f []byte, path string) *model.AppError {
 
 	return nil
 }
+
+func RemoveFile(path string) *model.AppError {
+	if Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_S3 {
+		endpoint := Cfg.FileSettings.AmazonS3Endpoint
+		accessKey := Cfg.FileSettings.AmazonS3AccessKeyId
+		secretKey := Cfg.FileSettings.AmazonS3SecretAccessKey
+		secure := *Cfg.FileSettings.AmazonS3SSL
+		s3Clnt, err := s3.New(endpoint, accessKey, secretKey, secure)
+		if err != nil {
+			return model.NewLocAppError("RemoveFile", "api.file.remove_file.s3.app_error", nil, err.Error())
+		}
+
+		bucket := Cfg.FileSettings.AmazonS3Bucket
+		if err := s3Clnt.RemoveObject(bucket, path); err != nil {
+			return model.NewLocAppError("RemoveFile", "api.file.remove_file.s3.app_error", nil, err.Error())
+		}
+	} else if Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_LOCAL {
+		if err := os.Remove(Cfg.FileSettings.Directory + path); err != nil {
+			return model.NewLocAppError("RemoveFile", "api.file.remove_file.local.app_error", nil, err.Error())
+		}
+	} else {
+		return model.NewLocAppError("RemoveFile", "api.file.write_file.configured.app_error", nil, "")
+	}
+
+	return nil
+}
