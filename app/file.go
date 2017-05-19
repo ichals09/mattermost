@@ -14,12 +14,9 @@ import (
 	_ "image/gif"
 	"image/jpeg"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -28,7 +25,6 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
-	s3 "github.com/minio/minio-go"
 	"github.com/rwcarlsen/goexif/exif"
 	_ "golang.org/x/image/bmp"
 )
@@ -56,140 +52,6 @@ const (
 	MaxImageSize = 6048 * 4032 // 24 megapixels, roughly 36MB as a raw image
 )
 
-func ReadFile(path string) ([]byte, *model.AppError) {
-	if utils.Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_S3 {
-		endpoint := utils.Cfg.FileSettings.AmazonS3Endpoint
-		accessKey := utils.Cfg.FileSettings.AmazonS3AccessKeyId
-		secretKey := utils.Cfg.FileSettings.AmazonS3SecretAccessKey
-		secure := *utils.Cfg.FileSettings.AmazonS3SSL
-		s3Clnt, err := s3.New(endpoint, accessKey, secretKey, secure)
-		if err != nil {
-			return nil, model.NewLocAppError("ReadFile", "api.file.read_file.s3.app_error", nil, err.Error())
-		}
-		bucket := utils.Cfg.FileSettings.AmazonS3Bucket
-		minioObject, err := s3Clnt.GetObject(bucket, path)
-		defer minioObject.Close()
-		if err != nil {
-			return nil, model.NewLocAppError("ReadFile", "api.file.read_file.s3.app_error", nil, err.Error())
-		}
-		if f, err := ioutil.ReadAll(minioObject); err != nil {
-			return nil, model.NewLocAppError("ReadFile", "api.file.read_file.s3.app_error", nil, err.Error())
-		} else {
-			return f, nil
-		}
-	} else if utils.Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_LOCAL {
-		if f, err := ioutil.ReadFile(utils.Cfg.FileSettings.Directory + path); err != nil {
-			return nil, model.NewLocAppError("ReadFile", "api.file.read_file.reading_local.app_error", nil, err.Error())
-		} else {
-			return f, nil
-		}
-	} else {
-		return nil, model.NewAppError("ReadFile", "api.file.read_file.configured.app_error", nil, "", http.StatusNotImplemented)
-	}
-}
-
-func MoveFile(oldPath, newPath string) *model.AppError {
-	if utils.Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_S3 {
-		endpoint := utils.Cfg.FileSettings.AmazonS3Endpoint
-		accessKey := utils.Cfg.FileSettings.AmazonS3AccessKeyId
-		secretKey := utils.Cfg.FileSettings.AmazonS3SecretAccessKey
-		secure := *utils.Cfg.FileSettings.AmazonS3SSL
-		s3Clnt, err := s3.New(endpoint, accessKey, secretKey, secure)
-		if err != nil {
-			return model.NewLocAppError("moveFile", "api.file.write_file.s3.app_error", nil, err.Error())
-		}
-		bucket := utils.Cfg.FileSettings.AmazonS3Bucket
-
-		var copyConds = s3.NewCopyConditions()
-		if err = s3Clnt.CopyObject(bucket, newPath, "/"+path.Join(bucket, oldPath), copyConds); err != nil {
-			return model.NewLocAppError("moveFile", "api.file.move_file.delete_from_s3.app_error", nil, err.Error())
-		}
-		if err = s3Clnt.RemoveObject(bucket, oldPath); err != nil {
-			return model.NewLocAppError("moveFile", "api.file.move_file.delete_from_s3.app_error", nil, err.Error())
-		}
-	} else if utils.Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_LOCAL {
-		if err := os.MkdirAll(filepath.Dir(utils.Cfg.FileSettings.Directory+newPath), 0774); err != nil {
-			return model.NewLocAppError("moveFile", "api.file.move_file.rename.app_error", nil, err.Error())
-		}
-
-		if err := os.Rename(utils.Cfg.FileSettings.Directory+oldPath, utils.Cfg.FileSettings.Directory+newPath); err != nil {
-			return model.NewLocAppError("moveFile", "api.file.move_file.rename.app_error", nil, err.Error())
-		}
-	} else {
-		return model.NewLocAppError("moveFile", "api.file.move_file.configured.app_error", nil, "")
-	}
-
-	return nil
-}
-
-func WriteFile(f []byte, path string) *model.AppError {
-	if utils.Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_S3 {
-		endpoint := utils.Cfg.FileSettings.AmazonS3Endpoint
-		accessKey := utils.Cfg.FileSettings.AmazonS3AccessKeyId
-		secretKey := utils.Cfg.FileSettings.AmazonS3SecretAccessKey
-		secure := *utils.Cfg.FileSettings.AmazonS3SSL
-		s3Clnt, err := s3.New(endpoint, accessKey, secretKey, secure)
-		if err != nil {
-			return model.NewLocAppError("WriteFile", "api.file.write_file.s3.app_error", nil, err.Error())
-		}
-		bucket := utils.Cfg.FileSettings.AmazonS3Bucket
-		ext := filepath.Ext(path)
-
-		if model.IsFileExtImage(ext) {
-			_, err = s3Clnt.PutObject(bucket, path, bytes.NewReader(f), model.GetImageMimeType(ext))
-		} else {
-			_, err = s3Clnt.PutObject(bucket, path, bytes.NewReader(f), "binary/octet-stream")
-		}
-		if err != nil {
-			return model.NewLocAppError("WriteFile", "api.file.write_file.s3.app_error", nil, err.Error())
-		}
-	} else if utils.Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_LOCAL {
-		if err := writeFileLocally(f, utils.Cfg.FileSettings.Directory+path); err != nil {
-			return err
-		}
-	} else {
-		return model.NewLocAppError("WriteFile", "api.file.write_file.configured.app_error", nil, "")
-	}
-
-	return nil
-}
-
-func writeFileLocally(f []byte, path string) *model.AppError {
-	if err := os.MkdirAll(filepath.Dir(path), 0774); err != nil {
-		directory, _ := filepath.Abs(filepath.Dir(path))
-		return model.NewLocAppError("WriteFile", "api.file.write_file_locally.create_dir.app_error", nil, "directory="+directory+", err="+err.Error())
-	}
-
-	if err := ioutil.WriteFile(path, f, 0644); err != nil {
-		return model.NewLocAppError("WriteFile", "api.file.write_file_locally.writing.app_error", nil, err.Error())
-	}
-
-	return nil
-}
-
-func openFileWriteStream(path string) (io.Writer, *model.AppError) {
-	if utils.Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_S3 {
-		return nil, model.NewLocAppError("openFileWriteStream", "api.file.open_file_write_stream.s3.app_error", nil, "")
-	} else if utils.Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_LOCAL {
-		if err := os.MkdirAll(filepath.Dir(utils.Cfg.FileSettings.Directory+path), 0774); err != nil {
-			return nil, model.NewLocAppError("openFileWriteStream", "api.file.open_file_write_stream.creating_dir.app_error", nil, err.Error())
-		}
-
-		if fileHandle, err := os.Create(utils.Cfg.FileSettings.Directory + path); err != nil {
-			return nil, model.NewLocAppError("openFileWriteStream", "api.file.open_file_write_stream.local_server.app_error", nil, err.Error())
-		} else {
-			fileHandle.Chmod(0644)
-			return fileHandle, nil
-		}
-	}
-
-	return nil, model.NewLocAppError("openFileWriteStream", "api.file.open_file_write_stream.configured.app_error", nil, "")
-}
-
-func closeFileWriteStream(file io.Writer) {
-	file.(*os.File).Close()
-}
-
 func GetInfoForFilename(post *model.Post, teamId string, filename string) *model.FileInfo {
 	// Find the path from the Filename of the form /{channelId}/{userId}/{uid}/{nameWithExtension}
 	split := strings.SplitN(filename, "/", 5)
@@ -212,7 +74,7 @@ func GetInfoForFilename(post *model.Post, teamId string, filename string) *model
 
 	// Open the file and populate the fields of the FileInfo
 	var info *model.FileInfo
-	if data, err := ReadFile(path); err != nil {
+	if data, err := utils.ReadFile(path); err != nil {
 		l4g.Error(utils.T("api.file.migrate_filenames_to_file_infos.file_not_found.error"), post.Id, filename, path, err)
 		return nil
 	} else {
@@ -254,7 +116,7 @@ func FindTeamIdForFilename(post *model.Post, filename string) string {
 	} else {
 		for _, team := range teams {
 			path := fmt.Sprintf("teams/%s/channels/%s/users/%s/%s/%s", team.Id, post.ChannelId, post.UserId, id, name)
-			if _, err := ReadFile(path); err == nil {
+			if _, err := utils.ReadFile(path); err == nil {
 				// Found the team that this file was posted from
 				return team.Id
 			}
@@ -452,7 +314,7 @@ func DoUploadFile(teamId string, channelId string, userId string, rawFilename st
 		info.ThumbnailPath = pathPrefix + nameWithoutExtension + "_thumb.jpg"
 	}
 
-	if err := WriteFile(data, info.Path); err != nil {
+	if err := utils.WriteFile(data, info.Path); err != nil {
 		return nil, err
 	}
 
@@ -555,7 +417,7 @@ func generateThumbnailImage(img image.Image, thumbnailPath string, width int, he
 		return
 	}
 
-	if err := WriteFile(buf.Bytes(), thumbnailPath); err != nil {
+	if err := utils.WriteFile(buf.Bytes(), thumbnailPath); err != nil {
 		l4g.Error(utils.T("api.file.handle_images_forget.upload_thumb.error"), thumbnailPath, err)
 		return
 	}
@@ -576,7 +438,7 @@ func generatePreviewImage(img image.Image, previewPath string, width int) {
 		return
 	}
 
-	if err := WriteFile(buf.Bytes(), previewPath); err != nil {
+	if err := utils.WriteFile(buf.Bytes(), previewPath); err != nil {
 		l4g.Error(utils.T("api.file.handle_images_forget.upload_preview.error"), previewPath, err)
 		return
 	}

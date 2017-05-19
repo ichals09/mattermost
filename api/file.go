@@ -81,7 +81,7 @@ func getFile(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if data, err := app.ReadFile(info.Path); err != nil {
+	if data, err := utils.ReadFile(info.Path); err != nil {
 		c.Err = err
 		c.Err.StatusCode = http.StatusNotFound
 	} else if err := writeFileResponse(info.Name, info.MimeType, data, w, r); err != nil {
@@ -103,7 +103,7 @@ func getFileThumbnail(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if data, err := app.ReadFile(info.ThumbnailPath); err != nil {
+	if data, err := utils.ReadFile(info.ThumbnailPath); err != nil {
 		c.Err = err
 		c.Err.StatusCode = http.StatusNotFound
 	} else if err := writeFileResponse(info.Name, "", data, w, r); err != nil {
@@ -125,7 +125,7 @@ func getFilePreview(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if data, err := app.ReadFile(info.PreviewPath); err != nil {
+	if data, err := utils.ReadFile(info.PreviewPath); err != nil {
 		c.Err = err
 		c.Err.StatusCode = http.StatusNotFound
 	} else if err := writeFileResponse(info.Name, "", data, w, r); err != nil {
@@ -175,7 +175,7 @@ func getPublicFile(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if data, err := app.ReadFile(info.Path); err != nil {
+	if data, err := utils.ReadFile(info.Path); err != nil {
 		c.Err = err
 		c.Err.StatusCode = http.StatusNotFound
 	} else if err := writeFileResponse(info.Name, info.MimeType, data, w, r); err != nil {
@@ -270,7 +270,7 @@ func getPublicFileOld(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if data, err := app.ReadFile(info.Path); err != nil {
+	if data, err := utils.ReadFile(info.Path); err != nil {
 		c.Err = err
 		c.Err.StatusCode = http.StatusNotFound
 	} else if err := writeFileResponse(info.Name, info.MimeType, data, w, r); err != nil {
