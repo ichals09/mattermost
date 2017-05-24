@@ -152,6 +152,7 @@ type PostStore interface {
 	PermanentDelete(postId string) StoreChannel
 	PermanentDeleteByUser(userId string) StoreChannel
 	PermanentDeleteByChannel(channelId string) StoreChannel
+	PermanentDeleteBeforeTime(before int64, limit int) StoreChannel
 	GetPosts(channelId string, offset int, limit int, allowFromCache bool) StoreChannel
 	GetFlaggedPosts(userId string, offset int, limit int) StoreChannel
 	GetFlaggedPostsForTeam(userId, teamId string, offset int, limit int) StoreChannel

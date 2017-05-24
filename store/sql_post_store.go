@@ -564,6 +564,34 @@ func (s SqlPostStore) PermanentDeleteByChannel(channelId string) StoreChannel {
 	return storeChannel
 }
 
+func (s SqlPostStore) PermanentDeleteBeforeTime(before int64, limit int) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		if sqlResult, err := s.GetMaster().Exec(
+			`DELETE FROM
+				Posts
+			WHERE
+				CreateAt < :Before
+			ORDER BY
+				CreateAt
+			LIMIT
+				:Limit`, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
+			result.Err = model.NewLocAppError("SqlPostStore.PermanentDeleteBeforeTime",
+				"store.sql_post.permanent_delete_before_time.app_error", nil, "err="+err.Error())
+		} else {
+			result.Data, _ = sqlResult.RowsAffected()
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
 func (s SqlPostStore) GetPosts(channelId string, offset int, limit int, allowFromCache bool) StoreChannel {
 	storeChannel := make(StoreChannel, 1)
 

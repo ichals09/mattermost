@@ -5312,6 +5312,10 @@
     "translation": "We couldn't delete the comments for user"
   },
   {
+    "id": "store.sql_post.permanent_delete_before_time.app_error",
+    "translation": "We couldn't permanently delete all posts before the given time"
+  },
+  {
     "id": "store.sql_post.permanent_delete_by_channel.app_error",
     "translation": "We couldn't delete the posts by channel"
   },

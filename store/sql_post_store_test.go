@@ -479,6 +479,93 @@ func TestPostStorePermDelete1Level2(t *testing.T) {
 	}
 }
 
+func TestPostStorePermanentDeleteBeforeTime(t *testing.T) {
+	Setup()
+
+	posts := []*model.Post{
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10000,
+		},
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10001,
+			Message:   "file.txt",
+		},
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10002,
+			Message:   "file.txt",
+		},
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10003,
+			Message:   "file.txt",
+		},
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10004,
+			Message:   "file.txt",
+		},
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10010,
+			Message:   "file.txt",
+		},
+	}
+
+	for i, post := range posts {
+		posts[i] = Must(store.Post().Save(post)).(*model.Post)
+		defer func(id string) {
+			<-store.Post().PermanentDelete(id)
+		}(posts[i].Id)
+	}
+
+	if result := <-store.Post().PermanentDeleteBeforeTime(10005, 2); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if count := result.Data.(int64); count != 2 {
+		t.Fatal("should've deleted oldest two entries")
+	}
+
+	if result := <-store.Post().Get(posts[0].Id); result.Err == nil {
+		t.Fatal("should've deleted oldest entry")
+	}
+	if result := <-store.Post().Get(posts[1].Id); result.Err == nil {
+		t.Fatal("should've deleted second oldest entry")
+	}
+	if result := <-store.Post().Get(posts[2].Id); result.Err != nil {
+		t.Fatal("shouldn't have deleted third oldest entry")
+	}
+	if result := <-store.Post().Get(posts[5].Id); result.Err != nil {
+		t.Fatal("shouldn't have deleted newest entry")
+	}
+
+	if result := <-store.Post().PermanentDeleteBeforeTime(10005, 4); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if count := result.Data.(int64); count != 3 {
+		t.Fatal("should've deleted second and third oldest entries")
+	}
+
+	if result := <-store.Post().Get(posts[2].Id); result.Err == nil {
+		t.Fatal("should've deleted oldest remaining entry")
+	}
+	if result := <-store.Post().Get(posts[3].Id); result.Err == nil {
+		t.Fatal("should've deleted second oldest remaining entry")
+	}
+	if result := <-store.Post().Get(posts[4].Id); result.Err == nil {
+		t.Fatal("should've deleted third oldest remaining entry")
+	}
+	if result := <-store.Post().Get(posts[5].Id); result.Err != nil {
+		t.Fatal("still shouldn't have deleted newest entry")
+	}
+}
+
 func TestPostStoreGetWithChildren(t *testing.T) {
 	Setup()
 
