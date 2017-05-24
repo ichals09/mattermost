@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	l4g "github.com/alecthomas/log4go"
 	"github.com/disintegration/imaging"
@@ -263,7 +264,7 @@ func UploadFiles(teamId string, channelId string, userId string, fileHeaders []*
 		io.Copy(buf, file)
 		data := buf.Bytes()
 
-		info, err := DoUploadFile(teamId, channelId, userId, fileHeader.Filename, data)
+		info, err := DoUploadFile(time.Now(), teamId, channelId, userId, fileHeader.Filename, data)
 		if err != nil {
 			return nil, err
 		}
@@ -286,7 +287,7 @@ func UploadFiles(teamId string, channelId string, userId string, fileHeaders []*
 	return resStruct, nil
 }
 
-func DoUploadFile(teamId string, channelId string, userId string, rawFilename string, data []byte) (*model.FileInfo, *model.AppError) {
+func DoUploadFile(now time.Time, teamId string, channelId string, userId string, rawFilename string, data []byte) (*model.FileInfo, *model.AppError) {
 	filename := filepath.Base(rawFilename)
 
 	info, err := model.GetInfoForBytes(filename, data)
@@ -298,7 +299,7 @@ func DoUploadFile(teamId string, channelId string, userId string, rawFilename st
 	info.Id = model.NewId()
 	info.CreatorId = userId
 
-	pathPrefix := "teams/" + teamId + "/channels/" + channelId + "/users/" + userId + "/" + info.Id + "/"
+	pathPrefix := now.Format("20060102") + "/teams/" + teamId + "/channels/" + channelId + "/users/" + userId + "/" + info.Id + "/"
 	info.Path = pathPrefix + filename
 
 	if info.IsImage() {
