@@ -257,3 +257,53 @@ func (fs SqlFileInfoStore) DeleteForPost(postId string) StoreChannel {
 
 	return storeChannel
 }
+
+func (fs SqlFileInfoStore) PermanentDelete(fileId string) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		if _, err := fs.GetMaster().Exec(
+			`DELETE FROM
+				FileInfo
+			WHERE
+				Id = :FileId`, map[string]interface{}{"FileId": fileId}); err != nil {
+			result.Err = model.NewLocAppError("SqlFileInfoStore.PermanentDelete",
+				"store.sql_file_info.permanent_delete.app_error", nil, "file_id="+fileId+", err="+err.Error())
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
+func (fs SqlFileInfoStore) PermanentDeleteBeforeTime(before int64, limit int) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		if sqlResult, err := fs.GetMaster().Exec(
+			`DELETE FROM
+				FileInfo
+			WHERE
+				CreateAt < :Before
+			ORDER BY
+				CreateAt
+			LIMIT
+				:Limit`, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
+			result.Err = model.NewLocAppError("SqlFileInfoStore.PermanentDeleteBeforeTime",
+				"store.sql_file_info.permanent_delete_before_time.app_error", nil, "err="+err.Error())
+		} else {
+			result.Data, _ = sqlResult.RowsAffected()
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}

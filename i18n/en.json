@@ -5100,6 +5100,14 @@
     "translation": "We couldn't get the file info for the post"
   },
   {
+    "id": "store.sql_file_info.permanent_delete.app_error",
+    "translation": "We couldn't permanently delete the file info"
+  },
+  {
+    "id": "store.sql_file_info.permanent_delete_before_time.app_error",
+    "translation": "We couldn't permanently delete all file info before the given time"
+  },
+  {
     "id": "store.sql_file_info.save.app_error",
     "translation": "We couldn't save the file info"
   },

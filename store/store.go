@@ -363,6 +363,8 @@ type FileInfoStore interface {
 	InvalidateFileInfosForPostCache(postId string)
 	AttachToPost(fileId string, postId string) StoreChannel
 	DeleteForPost(postId string) StoreChannel
+	PermanentDelete(fileId string) StoreChannel
+	PermanentDeleteBeforeTime(before int64, limit int) StoreChannel
 }
 
 type ReactionStore interface {
