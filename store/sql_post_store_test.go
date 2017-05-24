@@ -339,6 +339,62 @@ func TestPostStoreDelete2Level(t *testing.T) {
 	}
 }
 
+func TestPostStorePermanentDelete(t *testing.T) {
+	Setup()
+
+	post1 := Must(store.Post().Save(&model.Post{
+		ChannelId: model.NewId(),
+		UserId:    model.NewId(),
+	})).(*model.Post)
+	defer func() {
+		<-store.Post().PermanentDelete(post1.Id)
+	}()
+
+	post2 := Must(store.Post().Save(&model.Post{
+		ChannelId: post1.ChannelId,
+		UserId:    model.NewId(),
+		RootId:    post1.Id,
+	})).(*model.Post)
+
+	post3 := Must(store.Post().Save(&model.Post{
+		ChannelId: post1.ChannelId,
+		UserId:    model.NewId(),
+		RootId:    post1.Id,
+	})).(*model.Post)
+
+	if result := <-store.Post().PermanentDelete(post2.Id); result.Err != nil {
+		t.Fatal(result.Err)
+	}
+
+	if result := <-store.Post().GetSingle(post1.Id); result.Err != nil {
+		t.Fatal("shouldn't have deleted root post", result.Err)
+	}
+
+	if result := <-store.Post().GetSingle(post2.Id); result.Err == nil {
+		t.Fatal("should've deleted comment")
+	}
+
+	if result := <-store.Post().GetSingle(post3.Id); result.Err != nil {
+		t.Fatal("shouldn't have deleted later comment", result.Err)
+	}
+
+	if result := <-store.Post().PermanentDelete(post1.Id); result.Err != nil {
+		t.Fatal(result.Err)
+	}
+
+	if result := <-store.Post().GetSingle(post1.Id); result.Err == nil {
+		t.Fatal("should've deleted root post")
+	}
+
+	if result := <-store.Post().GetSingle(post2.Id); result.Err == nil {
+		t.Fatal("should've not undeleted comment")
+	}
+
+	if result := <-store.Post().GetSingle(post3.Id); result.Err == nil {
+		t.Fatal("shouldn't deleted comments", result.Err)
+	}
+}
+
 func TestPostStorePermDelete1Level(t *testing.T) {
 	Setup()
 
@@ -805,7 +861,7 @@ func TestPostStoreGetAllPostsBeforeTime(t *testing.T) {
 
 		posts[i] = Must(store.Post().Save(post)).(*model.Post)
 		defer func(index int) {
-			<-store.Post().(*SqlPostStore).permanentDelete(posts[index].Id)
+			<-store.Post().(*SqlPostStore).PermanentDelete(posts[index].Id)
 		}(i)
 	}
 

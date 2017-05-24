@@ -454,7 +454,7 @@ func (s SqlPostStore) Delete(postId string, time int64) StoreChannel {
 	return storeChannel
 }
 
-func (s SqlPostStore) permanentDelete(postId string) StoreChannel {
+func (s SqlPostStore) PermanentDelete(postId string) StoreChannel {
 	storeChannel := make(StoreChannel, 1)
 
 	go func() {
@@ -521,7 +521,7 @@ func (s SqlPostStore) PermanentDeleteByUser(userId string) StoreChannel {
 				found = false
 				for _, id := range ids {
 					found = true
-					if r := <-s.permanentDelete(id); r.Err != nil {
+					if r := <-s.PermanentDelete(id); r.Err != nil {
 						result.Err = r.Err
 						storeChannel <- result
 						close(storeChannel)
