@@ -73,4 +73,47 @@ func TestRemoveFile(t *testing.T) {
 	if _, err := ReadFile(path); err == nil {
 		t.Fatal("should've removed file")
 	}
+
+	if err := WriteFile(b, "tests2/foo"); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteFile(b, "tests2/bar"); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteFile(b, "tests2/asdf"); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveFile("tests2"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRemoveDirectory(t *testing.T) {
+	TranslationsPreInit()
+	LoadConfig("config.json")
+	InitTranslations(Cfg.LocalizationSettings)
+
+	b := []byte("test")
+
+	if err := WriteFile(b, "tests2/foo"); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteFile(b, "tests2/bar"); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteFile(b, "tests2/aaa"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RemoveDirectory("tests2"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ReadFile("tests2/foo"); err == nil {
+		t.Fatal("should've removed file")
+	} else if _, err := ReadFile("tests2/bar"); err == nil {
+		t.Fatal("should've removed file")
+	} else if _, err := ReadFile("tests2/asdf"); err == nil {
+		t.Fatal("should've removed file")
+	}
 }

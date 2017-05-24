@@ -151,3 +151,56 @@ func RemoveFile(path string) *model.AppError {
 
 	return nil
 }
+
+func getPathsFromObjectInfos(in <-chan s3.ObjectInfo) <-chan string {
+	out := make(chan string, 1)
+
+	go func() {
+		defer close(out)
+
+		for {
+			info, done := <-in
+
+			if !done {
+				break
+			}
+
+			out <- info.Key
+		}
+	}()
+
+	return out
+}
+
+func RemoveDirectory(path string) *model.AppError {
+	if Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_S3 {
+		endpoint := Cfg.FileSettings.AmazonS3Endpoint
+		accessKey := Cfg.FileSettings.AmazonS3AccessKeyId
+		secretKey := Cfg.FileSettings.AmazonS3SecretAccessKey
+		secure := *Cfg.FileSettings.AmazonS3SSL
+		s3Clnt, err := s3.New(endpoint, accessKey, secretKey, secure)
+		if err != nil {
+			return model.NewLocAppError("RemoveDirectory", "api.file.remove_directory.s3.app_error", nil, err.Error())
+		}
+
+		doneCh := make(chan struct{})
+
+		bucket := Cfg.FileSettings.AmazonS3Bucket
+		for err := range s3Clnt.RemoveObjects(bucket, getPathsFromObjectInfos(s3Clnt.ListObjects(bucket, path, true, doneCh))) {
+			if err.Err != nil {
+				doneCh <- struct{}{}
+				return model.NewLocAppError("RemoveDirectory", "api.file.remove_directory.s3.app_error", nil, err.Err.Error())
+			}
+		}
+
+		close(doneCh)
+	} else if Cfg.FileSettings.DriverName == model.IMAGE_DRIVER_LOCAL {
+		if err := os.RemoveAll(Cfg.FileSettings.Directory + path); err != nil {
+			return model.NewLocAppError("RemoveDirectory", "api.file.remove_directory.local.app_error", nil, err.Error())
+		}
+	} else {
+		return model.NewLocAppError("RemoveDirectory", "api.file.write_file.configured.app_error", nil, "")
+	}
+
+	return nil
+}
