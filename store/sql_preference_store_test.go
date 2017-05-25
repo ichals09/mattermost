@@ -472,3 +472,111 @@ func TestPreferenceDeleteCategoryAndName(t *testing.T) {
 		t.Fatal("should've returned no preferences")
 	}
 }
+
+func TestPreferenceDeleteForPostsBeforeTime(t *testing.T) {
+	Setup()
+
+	userIds := []string{
+		model.NewId(),
+		model.NewId(),
+	}
+
+	posts := []*model.Post{
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10000,
+		},
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10001,
+			Message:   "file.txt",
+		},
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10010,
+			Message:   "file.txt",
+		},
+	}
+
+	for i, post := range posts {
+		posts[i] = Must(store.Post().Save(post)).(*model.Post)
+		defer func(id string) {
+			<-store.Post().PermanentDelete(id)
+		}(posts[i].Id)
+	}
+
+	for _, post := range posts {
+		for _, userId := range userIds {
+			Must(store.Preference().Save(&model.Preferences{
+				{
+					UserId:   userId,
+					Category: model.PREFERENCE_CATEGORY_FLAGGED_POST,
+					Name:     post.Id,
+				},
+			}))
+			defer func(userId string, postId string) {
+				<-store.Preference().Delete(userId, model.PREFERENCE_CATEGORY_FLAGGED_POST, postId)
+			}(userId, post.Id)
+		}
+	}
+
+	if result := <-store.Preference().DeleteForPostsBeforeTime(10005, 3); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if count := result.Data.(int64); count != 3 {
+		t.Fatal("should've deleted three entries", count)
+	}
+
+	count := 0
+	for _, userId := range userIds {
+		if result := <-store.Preference().GetCategory(userId, model.PREFERENCE_CATEGORY_FLAGGED_POST); result.Err != nil {
+			t.Fatal(result.Err)
+		} else {
+			count += len([]model.Preference(result.Data.(model.Preferences)))
+		}
+	}
+
+	if count != 3 {
+		t.Fatalf("should have three entries left (one that will be deleted soon, two others), has %v instead", count)
+	}
+
+	if result := <-store.Preference().DeleteForPostsBeforeTime(10005, 3); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if count := result.Data.(int64); count != 1 {
+		t.Fatal("should've deleted remaining entry", count)
+	}
+
+	count = 0
+	for _, userId := range userIds {
+		if result := <-store.Preference().GetCategory(userId, model.PREFERENCE_CATEGORY_FLAGGED_POST); result.Err != nil {
+			t.Fatal(result.Err)
+		} else {
+			count += len([]model.Preference(result.Data.(model.Preferences)))
+		}
+	}
+
+	if count != 2 {
+		t.Fatalf("should have two entries left (that won't be deleted by subsequent runs), has %v instead", count)
+	}
+
+	if result := <-store.Preference().DeleteForPostsBeforeTime(10005, 3); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if count := result.Data.(int64); count != 0 {
+		t.Fatal("shouldn't have deleted any more", count)
+	}
+
+	count = 0
+	for _, userId := range userIds {
+		if result := <-store.Preference().GetCategory(userId, model.PREFERENCE_CATEGORY_FLAGGED_POST); result.Err != nil {
+			t.Fatal(result.Err)
+		} else {
+			count += len([]model.Preference(result.Data.(model.Preferences)))
+		}
+	}
+
+	if count != 2 {
+		t.Fatalf("should still have two entries left (that won't be deleted by subsequent runs), has %v instead", count)
+	}
+}

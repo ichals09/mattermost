@@ -321,6 +321,7 @@ type PreferenceStore interface {
 	Delete(userId, category, name string) StoreChannel
 	DeleteCategory(userId string, category string) StoreChannel
 	DeleteCategoryAndName(category string, name string) StoreChannel
+	DeleteForPostsBeforeTime(before int64, limit int) StoreChannel
 	PermanentDeleteByUser(userId string) StoreChannel
 	IsFeatureEnabled(feature, userId string) StoreChannel
 }

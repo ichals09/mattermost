@@ -370,3 +370,37 @@ func (s SqlPreferenceStore) DeleteCategoryAndName(category string, name string) 
 
 	return storeChannel
 }
+
+func (s SqlPreferenceStore) DeleteForPostsBeforeTime(before int64, limit int) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		if sqlResult, err := s.GetMaster().Exec(
+			`DELETE FROM
+				Preferences
+			WHERE
+				Category = '`+model.PREFERENCE_CATEGORY_FLAGGED_POST+`'
+				AND Name IN (
+					SELECT
+						Id
+					FROM
+						Posts
+					WHERE
+						CreateAt < :Before
+				)
+			LIMIT
+				:Limit`, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
+			result.Err = model.NewLocAppError("SqlPreferenceStore.DeleteForPostsBeforeTime",
+				"store.sql_preference.delete_for_posts_before_time.app_error", nil, "err="+err.Error())
+		} else {
+			result.Data, _ = sqlResult.RowsAffected()
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}

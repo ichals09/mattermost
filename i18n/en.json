@@ -5352,6 +5352,10 @@
     "translation": "We encountered an error while deleting preferences"
   },
   {
+    "id": "store.sql_preference.delete_for_posts_before_time.app_error",
+    "translation": "We encountered an error while deleting preferences for posts before the given time"
+  },
+  {
     "id": "store.sql_preference.delete_unused_features.debug",
     "translation": "Deleting any unused pre-release features"
   },
@@ -5381,7 +5385,7 @@
   },
   {
     "id": "store.sql_preference.permanent_delete_by_user.app_error",
-    "translation": "We encountered an error while deleteing preferences"
+    "translation": "We encountered an error while deleting preferences"
   },
   {
     "id": "store.sql_preference.save.commit_transaction.app_error",
