@@ -11,6 +11,11 @@ import (
 const (
 	JOB_TYPE_DATA_RETENTION  = "data_retention"
 	JOB_TYPE_SEARCH_INDEXING = "search_indexing"
+
+	JOB_STATUS_STARTED  = "started"
+	JOB_STATUS_SLEEPING = "sleeping"
+	JOB_STATUS_RUNNING  = "running"
+	JOB_STATUS_STOPPED  = "stopped"
 )
 
 type JobStatus struct {

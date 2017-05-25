@@ -263,6 +263,10 @@ ifeq ($(BUILD_ENTERPRISE_READY),true)
 	@echo "Packages to test: "$(EE_PACKAGES)
 
 	for package in $(EE_PACKAGES); do \
+		if [ $$package != "github.com/mattermost/platform/enterprise/data_retention" ]; then \
+			echo "Skipping " $$package; \
+			continue; \
+		fi; \
 		echo "Testing "$$package; \
 		$(GO) test $(GOFLAGS) -run=$(TESTS) -covermode=count -coverpkg=$(ALL_PACKAGES_COMMA) -c $$package; \
 		if [ -f $$(basename $$package).test ]; then \

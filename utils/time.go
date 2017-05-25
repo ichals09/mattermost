@@ -25,3 +25,16 @@ func EndOfDay(t time.Time) time.Time {
 func Yesterday() time.Time {
 	return time.Now().AddDate(0, 0, -1)
 }
+
+// Returns a time.Time representing the next time it'll be the given hour (in 24 hour time). For example,
+// passing in t=6:00 today and hour=14:00 would return 14:00 today, but passing in t=16:00 today and
+// hour=14:00 would return 14:00 tomorrow.
+func NextHour(t time.Time, hour int) time.Time {
+	next := time.Date(t.Year(), t.Month(), t.Day(), hour, 0, 0, 0, t.Location())
+
+	if next.Before(t) {
+		next = next.AddDate(0, 0, 1)
+	}
+
+	return next
+}

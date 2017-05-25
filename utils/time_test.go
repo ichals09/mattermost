@@ -48,3 +48,17 @@ func TestEndOfDay(t *testing.T) {
 		t.Fatalf("TestEndOfDay failed, %v=%v", expected, actual)
 	}
 }
+
+func TestNextHour(t *testing.T) {
+	input, _ := time.Parse(format, "2017-05-17 12:34:00.000000000")
+	expected, _ := time.Parse(format, "2017-05-17 14:00:00.0000000000")
+	if NextHour(input, 14).Equal(expected) {
+		t.Fatal("should've returned same day at 2pm")
+	}
+
+	input, _ = time.Parse(format, "2017-05-17 16:34:00.000000000")
+	expected, _ = time.Parse(format, "2017-05-18 14:00:00.0000000000")
+	if NextHour(input, 14).Equal(expected) {
+		t.Fatal("should've returned next day at 2pm")
+	}
+}
