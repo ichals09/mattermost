@@ -397,6 +397,14 @@ func (s SqlPreferenceStore) DeleteForPostsBeforeTime(before int64, limit int) St
 									Posts
 								WHERE
 									CreateAt < :Before
+									OR Id IN (
+										SELECT
+											Id
+										FROM
+											Posts
+										WHERE
+											CreateAt < :Before
+									)
 							)
 						LIMIT
 							:Limit
@@ -414,6 +422,14 @@ func (s SqlPreferenceStore) DeleteForPostsBeforeTime(before int64, limit int) St
 							Posts
 						WHERE
 							CreateAt < :Before
+							OR Id IN (
+								SELECT
+									Id
+								FROM
+									Posts
+								WHERE
+									CreateAt < :Before
+							)
 					)
 				LIMIT
 					:Limit`

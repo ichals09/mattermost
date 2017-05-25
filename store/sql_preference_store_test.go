@@ -491,13 +491,11 @@ func TestPreferenceDeleteForPostsBeforeTime(t *testing.T) {
 			UserId:    model.NewId(),
 			ChannelId: model.NewId(),
 			CreateAt:  10001,
-			Message:   "file.txt",
 		},
 		{
 			UserId:    model.NewId(),
 			ChannelId: model.NewId(),
 			CreateAt:  10010,
-			Message:   "file.txt",
 		},
 	}
 
@@ -506,9 +504,7 @@ func TestPreferenceDeleteForPostsBeforeTime(t *testing.T) {
 		defer func(id string) {
 			<-store.Post().PermanentDelete(id)
 		}(posts[i].Id)
-	}
 
-	for _, post := range posts {
 		for _, userId := range userIds {
 			Must(store.Preference().Save(&model.Preferences{
 				{
@@ -520,6 +516,41 @@ func TestPreferenceDeleteForPostsBeforeTime(t *testing.T) {
 			defer func(userId string, postId string) {
 				<-store.Preference().Delete(userId, model.PREFERENCE_CATEGORY_FLAGGED_POST, postId)
 			}(userId, post.Id)
+		}
+	}
+
+	comments := []*model.Post{
+		{
+			RootId:    posts[0].Id,
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10000,
+		},
+		{
+			RootId:    posts[2].Id,
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10010,
+		},
+	}
+
+	for i, comment := range comments {
+		comments[i] = Must(store.Post().Save(comment)).(*model.Post)
+		defer func(id string) {
+			<-store.Post().PermanentDelete(id)
+		}(comments[i].Id)
+
+		for _, userId := range userIds {
+			Must(store.Preference().Save(&model.Preferences{
+				{
+					UserId:   userId,
+					Category: model.PREFERENCE_CATEGORY_FLAGGED_POST,
+					Name:     comment.Id,
+				},
+			}))
+			defer func(userId string, postId string) {
+				<-store.Preference().Delete(userId, model.PREFERENCE_CATEGORY_FLAGGED_POST, postId)
+			}(userId, comment.Id)
 		}
 	}
 
@@ -538,14 +569,14 @@ func TestPreferenceDeleteForPostsBeforeTime(t *testing.T) {
 		}
 	}
 
-	if count != 3 {
-		t.Fatalf("should have three entries left (one that will be deleted soon, two others), has %v instead", count)
+	if count != 7 {
+		t.Fatalf("should have 7 entries left, has %v instead", count)
 	}
 
-	if result := <-store.Preference().DeleteForPostsBeforeTime(10005, 3); result.Err != nil {
+	if result := <-store.Preference().DeleteForPostsBeforeTime(10005, 10); result.Err != nil {
 		t.Fatal(result.Err)
-	} else if count := result.Data.(int64); count != 1 {
-		t.Fatal("should've deleted remaining entry", count)
+	} else if count := result.Data.(int64); count != 3 {
+		t.Fatal("should've deleted remaining entries", count)
 	}
 
 	count = 0
@@ -557,8 +588,8 @@ func TestPreferenceDeleteForPostsBeforeTime(t *testing.T) {
 		}
 	}
 
-	if count != 2 {
-		t.Fatalf("should have two entries left (that won't be deleted by subsequent runs), has %v instead", count)
+	if count != 4 {
+		t.Fatalf("should have 4 entries left, has %v instead", count)
 	}
 
 	if result := <-store.Preference().DeleteForPostsBeforeTime(10005, 3); result.Err != nil {
@@ -576,7 +607,7 @@ func TestPreferenceDeleteForPostsBeforeTime(t *testing.T) {
 		}
 	}
 
-	if count != 2 {
-		t.Fatalf("should still have two entries left (that won't be deleted by subsequent runs), has %v instead", count)
+	if count != 4 {
+		t.Fatalf("should still have 4 entries left, has %v instead", count)
 	}
 }

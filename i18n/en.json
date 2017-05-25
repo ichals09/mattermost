@@ -5108,6 +5108,10 @@
     "translation": "We couldn't permanently delete all file info before the given time"
   },
   {
+    "id": "store.sql_post.permanent_delete_before_time.comments.app_error",
+    "translation": "We couldn't permanently delete comments for all posts before the given time"
+  },
+  {
     "id": "store.sql_file_info.save.app_error",
     "translation": "We couldn't save the file info"
   },

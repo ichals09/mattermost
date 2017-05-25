@@ -522,48 +522,111 @@ func TestPostStorePermanentDeleteBeforeTime(t *testing.T) {
 		}(posts[i].Id)
 	}
 
+	comments := []*model.Post{
+		{
+			RootId:    posts[0].Id,
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10002,
+		},
+		{
+			RootId:    posts[0].Id,
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10010,
+		},
+		{
+			RootId:    posts[0].Id,
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10012,
+		},
+		{
+			RootId:    posts[3].Id,
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10012,
+		},
+		{
+			RootId:    posts[5].Id,
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10012,
+		},
+	}
+
+	for i, comment := range comments {
+		comments[i] = Must(store.Post().Save(comment)).(*model.Post)
+		defer func(id string) {
+			<-store.Post().PermanentDelete(id)
+		}(comments[i].Id)
+	}
+
 	if result := <-store.Post().PermanentDeleteBeforeTime(10005, 2); result.Err != nil {
 		t.Fatal(result.Err)
-	} else if count := result.Data.(int64); count != 2 {
-		t.Fatal("should've deleted oldest two entries")
+	} else if count := result.Data.(int64); count != 5 {
+		t.Fatal("should've deleted first 2 posts and 3 comments")
 	}
 
 	if result := <-store.Post().Get(posts[0].Id); result.Err == nil {
-		t.Fatal("should've deleted oldest entry")
+		t.Fatal("should've deleted first post")
 	}
 	if result := <-store.Post().Get(posts[1].Id); result.Err == nil {
-		t.Fatal("should've deleted second oldest entry")
+		t.Fatal("should've deleted second post")
 	}
 	if result := <-store.Post().Get(posts[2].Id); result.Err != nil {
-		t.Fatal("shouldn't have deleted third oldest entry")
+		t.Fatal("shouldn't have deleted third post")
 	}
 	if result := <-store.Post().Get(posts[3].Id); result.Err != nil {
-		t.Fatal("shouldn't have deleted fourth oldest entry")
+		t.Fatal("shouldn't have deleted fourth post")
 	}
 	if result := <-store.Post().Get(posts[4].Id); result.Err != nil {
-		t.Fatal("shouldn't have deleted fifth oldest entry")
+		t.Fatal("shouldn't have deleted fifth post")
 	}
 	if result := <-store.Post().Get(posts[5].Id); result.Err != nil {
-		t.Fatal("shouldn't have deleted newest entry")
+		t.Fatal("shouldn't have deleted newer post")
+	}
+
+	if result := <-store.Post().Get(comments[0].Id); result.Err == nil {
+		t.Fatal("should've deleted first comment on first post")
+	}
+	if result := <-store.Post().Get(comments[1].Id); result.Err == nil {
+		t.Fatal("should've deleted second comment on first post")
+	}
+	if result := <-store.Post().Get(comments[2].Id); result.Err == nil {
+		t.Fatal("should've deleted third comment on first post")
+	}
+	if result := <-store.Post().Get(comments[3].Id); result.Err != nil {
+		t.Fatal("shouldn't have deleted comment on third post")
+	}
+	if result := <-store.Post().Get(comments[4].Id); result.Err != nil {
+		t.Fatal("shouldn't have deleted comment on newer post")
 	}
 
 	if result := <-store.Post().PermanentDeleteBeforeTime(10005, 4); result.Err != nil {
 		t.Fatal(result.Err)
-	} else if count := result.Data.(int64); count != 3 {
-		t.Fatal("should've deleted second and third oldest entries")
+	} else if count := result.Data.(int64); count != 4 {
+		t.Fatal("should've deleted third and fourth posts and the comment on the fourth post")
 	}
 
 	if result := <-store.Post().Get(posts[2].Id); result.Err == nil {
-		t.Fatal("should've deleted oldest remaining entry")
+		t.Fatal("should've deleted third post")
 	}
 	if result := <-store.Post().Get(posts[3].Id); result.Err == nil {
-		t.Fatal("should've deleted second oldest remaining entry")
+		t.Fatal("should've deleted fourth post")
 	}
 	if result := <-store.Post().Get(posts[4].Id); result.Err == nil {
-		t.Fatal("should've deleted third oldest remaining entry")
+		t.Fatal("should've deleted fifth post")
 	}
 	if result := <-store.Post().Get(posts[5].Id); result.Err != nil {
-		t.Fatal("still shouldn't have deleted newest entry")
+		t.Fatal("shouldn't have deleted newer post")
+	}
+
+	if result := <-store.Post().Get(comments[3].Id); result.Err == nil {
+		t.Fatal("should've deleted comment on third post")
+	}
+	if result := <-store.Post().Get(comments[4].Id); result.Err != nil {
+		t.Fatal("shouldn't have deleted comment on newer post")
 	}
 }
 

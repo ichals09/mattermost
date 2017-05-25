@@ -245,6 +245,14 @@ func (s SqlReactionStore) DeleteForPostsBeforeTime(before int64, limit int) Stor
 									Posts
 								WHERE
 									CreateAt < :Before
+									OR RootId IN (
+										SELECT
+											Id
+										FROM
+											Posts
+										WHERE
+											CreateAt < :Before
+									)
 							)
 						LIMIT
 							:Limit
@@ -252,16 +260,23 @@ func (s SqlReactionStore) DeleteForPostsBeforeTime(before int64, limit int) Stor
 		} else {
 			query =
 				`DELETE FROM
-					Preferences
+					Reactions
 				WHERE
-					Category = '` + model.PREFERENCE_CATEGORY_FLAGGED_POST + `'
-					AND Name IN (
+					PostId IN (
 						SELECT
 							Id
 						FROM
 							Posts
 						WHERE
 							CreateAt < :Before
+							OR RootId IN (
+								SELECT
+									Id
+								FROM
+									Posts
+								WHERE
+									CreateAt < :Before
+							)
 					)
 				LIMIT
 					:Limit`

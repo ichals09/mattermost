@@ -570,19 +570,77 @@ func (s SqlPostStore) PermanentDeleteBeforeTime(before int64, limit int) StoreCh
 	go func() {
 		result := StoreResult{}
 
+		var count int64 = 0
+
 		var query string
 		if utils.Cfg.SqlSettings.DriverName == model.DATABASE_DRIVER_POSTGRES {
 			query =
 				`DELETE FROM
 					Posts
 				WHERE
-					Id IN (
+					RootId != ''
+					AND RootId in (
 						SELECT
 							Id
 						FROM
 							Posts
 						WHERE
 							CreateAt < :Before
+							AND RootId = ''
+						ORDER BY
+							CreateAt
+						LIMIT
+							:Limit
+					)`
+		} else {
+			query =
+				`DELETE FROM
+					Posts
+				WHERE
+					RootId != ''
+					AND RootId in (
+						SELECT
+							*
+						FROM
+							(SELECT
+								Id
+							FROM
+								Posts
+							WHERE
+								CreateAt < :Before
+								AND RootId = ''
+							ORDER BY
+								CreateAt
+							LIMIT
+								:Limit
+							) as temp
+					)`
+		}
+
+		if sqlResult, err := s.GetMaster().Exec(query, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
+			result.Err = model.NewLocAppError("SqlPostStore.PermanentDeleteBeforeTime",
+				"store.sql_post.permanent_delete_before_time.comments.app_error", nil, "err="+err.Error())
+			storeChannel <- result
+			close(storeChannel)
+			return
+		} else {
+			commentCount, _ := sqlResult.RowsAffected()
+			count += commentCount
+		}
+
+		if utils.Cfg.SqlSettings.DriverName == model.DATABASE_DRIVER_POSTGRES {
+			query =
+				`DELETE FROM
+					Posts
+				WHERE
+					ctid IN (
+						SELECT
+							ctid
+						FROM
+							Posts
+						WHERE
+							CreateAt < :Before
+							AND RootId = ''
 						ORDER BY
 							CreateAt
 						LIMIT
@@ -594,6 +652,7 @@ func (s SqlPostStore) PermanentDeleteBeforeTime(before int64, limit int) StoreCh
 					Posts
 				WHERE
 					CreateAt < :Before
+					AND RootId = ''
 				ORDER BY
 					CreateAt
 				LIMIT
@@ -603,8 +662,16 @@ func (s SqlPostStore) PermanentDeleteBeforeTime(before int64, limit int) StoreCh
 		if sqlResult, err := s.GetMaster().Exec(query, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
 			result.Err = model.NewLocAppError("SqlPostStore.PermanentDeleteBeforeTime",
 				"store.sql_post.permanent_delete_before_time.app_error", nil, "err="+err.Error())
+			storeChannel <- result
+			close(storeChannel)
+			return
 		} else {
-			result.Data, _ = sqlResult.RowsAffected()
+			postCount, _ := sqlResult.RowsAffected()
+			count += postCount
+		}
+
+		if result.Err == nil {
+			result.Data = count
 		}
 
 		storeChannel <- result
