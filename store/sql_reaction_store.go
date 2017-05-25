@@ -205,11 +205,45 @@ func (s SqlReactionStore) GetForPost(postId string, allowFromCache bool) StoreCh
 				PostId = :PostId
 			ORDER BY
 				CreateAt`, map[string]interface{}{"PostId": postId}); err != nil {
-			result.Err = model.NewLocAppError("SqlReactionStore.GetForPost", "store.sql_reaction.get_for_post.app_error", nil, "")
+			result.Err = model.NewLocAppError("SqlReactionStore.GetForPost",
+				"store.sql_reaction.get_for_post.app_error", nil, "post_id="+postId+", error="+err.Error())
 		} else {
 			result.Data = reactions
 
 			reactionCache.AddWithExpiresInSecs(postId, reactions, REACTION_CACHE_SEC)
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
+func (s SqlReactionStore) DeleteForPostsBeforeTime(before int64, limit int) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		if sqlResult, err := s.GetMaster().Exec(
+			`DELETE FROM
+				Reactions
+			WHERE
+				PostId IN (
+					SELECT
+						Id
+					FROM
+						Posts
+					WHERE
+						CreateAt < :Before
+				)
+			LIMIT
+				:Limit`, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
+			result.Err = model.NewLocAppError("SqlReactionStore.DeleteForPostsBeforeTime",
+				"store.sql_reaction.delete_for_posts_before_time.app_error", nil, "err="+err.Error())
+		} else {
+			result.Data, _ = sqlResult.RowsAffected()
 		}
 
 		storeChannel <- result

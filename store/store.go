@@ -375,6 +375,7 @@ type ReactionStore interface {
 	InvalidateCacheForPost(postId string)
 	InvalidateCache()
 	GetForPost(postId string, allowFromCache bool) StoreChannel
+	DeleteForPostsBeforeTime(before int64, limit int) StoreChannel
 	DeleteAllWithEmojiName(emojiName string) StoreChannel
 }
 

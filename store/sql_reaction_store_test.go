@@ -206,6 +206,90 @@ func TestReactionGetForPost(t *testing.T) {
 	}
 }
 
+func TestReactionDeleteForPostsBeforeTime(t *testing.T) {
+	Setup()
+
+	posts := []*model.Post{
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10000,
+		},
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10001,
+			Message:   "file.txt",
+		},
+		{
+			UserId:    model.NewId(),
+			ChannelId: model.NewId(),
+			CreateAt:  10010,
+			Message:   "file.txt",
+		},
+	}
+
+	for i, post := range posts {
+		posts[i] = Must(store.Post().Save(post)).(*model.Post)
+		defer func(id string) {
+			<-store.Post().PermanentDelete(id)
+		}(posts[i].Id)
+	}
+
+	for _, post := range posts {
+		for i := 0; i < 2; i++ {
+			reaction := Must(store.Reaction().Save(&model.Reaction{
+				UserId:    model.NewId(),
+				PostId:    post.Id,
+				EmojiName: "taco",
+				CreateAt:  post.CreateAt + 1,
+			})).(*model.Reaction)
+			defer func() {
+				<-store.Reaction().Delete(reaction)
+			}()
+		}
+	}
+
+	if result := <-store.Reaction().DeleteForPostsBeforeTime(10005, 3); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if count := result.Data.(int64); count != 3 {
+		t.Fatal("should've deleted oldest three entries")
+	}
+
+	if result := <-store.Reaction().GetForPost(posts[0].Id, false); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if received := result.Data.([]*model.Reaction); len(received) != 0 {
+		t.Fatal("should've deleted all reactions for oldest post")
+	}
+	if result := <-store.Reaction().GetForPost(posts[1].Id, false); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if received := result.Data.([]*model.Reaction); len(received) != 1 {
+		t.Fatal("should've deleted one reaction for second oldest post")
+	}
+	if result := <-store.Reaction().GetForPost(posts[2].Id, false); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if received := result.Data.([]*model.Reaction); len(received) != 2 {
+		t.Fatal("should've deleted no reactions for newest post")
+	}
+
+	if result := <-store.Reaction().DeleteForPostsBeforeTime(10005, 10); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if count := result.Data.(int64); count != 1 {
+		t.Fatal("should've deleted remaining old entry")
+	}
+
+	if result := <-store.Reaction().GetForPost(posts[1].Id, false); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if received := result.Data.([]*model.Reaction); len(received) != 0 {
+		t.Fatal("should've deleted second reaction for second oldest post")
+	}
+	if result := <-store.Reaction().GetForPost(posts[2].Id, false); result.Err != nil {
+		t.Fatal(result.Err)
+	} else if received := result.Data.([]*model.Reaction); len(received) != 2 {
+		t.Fatal("should've deleted no reactions for newest post")
+	}
+}
+
 func TestReactionDeleteAllWithEmojiName(t *testing.T) {
 	Setup()
 
