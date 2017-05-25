@@ -226,20 +226,48 @@ func (s SqlReactionStore) DeleteForPostsBeforeTime(before int64, limit int) Stor
 	go func() {
 		result := StoreResult{}
 
-		if sqlResult, err := s.GetMaster().Exec(
-			`DELETE FROM
-				Reactions
-			WHERE
-				PostId IN (
-					SELECT
-						Id
-					FROM
-						Posts
-					WHERE
-						CreateAt < :Before
-				)
-			LIMIT
-				:Limit`, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
+		var query string
+		if utils.Cfg.SqlSettings.DriverName == model.DATABASE_DRIVER_POSTGRES {
+			query =
+				`DELETE FROM
+					Reactions
+				WHERE
+					ctid IN (
+						SELECT
+							ctid
+						FROM
+							Reactions
+						WHERE
+							PostId IN (
+								SELECT
+									Id
+								FROM
+									Posts
+								WHERE
+									CreateAt < :Before
+							)
+						LIMIT
+							:Limit
+					)`
+		} else {
+			query =
+				`DELETE FROM
+					Preferences
+				WHERE
+					Category = '` + model.PREFERENCE_CATEGORY_FLAGGED_POST + `'
+					AND Name IN (
+						SELECT
+							Id
+						FROM
+							Posts
+						WHERE
+							CreateAt < :Before
+					)
+				LIMIT
+					:Limit`
+		}
+
+		if sqlResult, err := s.GetMaster().Exec(query, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
 			result.Err = model.NewLocAppError("SqlReactionStore.DeleteForPostsBeforeTime",
 				"store.sql_reaction.delete_for_posts_before_time.app_error", nil, "err="+err.Error())
 		} else {

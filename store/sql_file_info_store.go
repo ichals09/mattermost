@@ -286,15 +286,37 @@ func (fs SqlFileInfoStore) PermanentDeleteBeforeTime(before int64, limit int) St
 	go func() {
 		result := StoreResult{}
 
-		if sqlResult, err := fs.GetMaster().Exec(
-			`DELETE FROM
-				FileInfo
-			WHERE
-				CreateAt < :Before
-			ORDER BY
-				CreateAt
-			LIMIT
-				:Limit`, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
+		var query string
+		if utils.Cfg.SqlSettings.DriverName == model.DATABASE_DRIVER_POSTGRES {
+			query =
+				`DELETE FROM
+					FileInfo
+				WHERE
+					Id IN (
+						SELECT
+							Id
+						FROM
+							FileInfo
+						WHERE
+							CreateAt < :Before
+						ORDER BY
+							CreateAt
+						LIMIT
+							:Limit
+					)`
+		} else {
+			query =
+				`DELETE FROM
+					FileInfo
+				WHERE
+					CreateAt < :Before
+				ORDER BY
+					CreateAt
+				LIMIT
+					:Limit`
+		}
+
+		if sqlResult, err := fs.GetMaster().Exec(query, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
 			result.Err = model.NewLocAppError("SqlFileInfoStore.PermanentDeleteBeforeTime",
 				"store.sql_file_info.permanent_delete_before_time.app_error", nil, "err="+err.Error())
 		} else {

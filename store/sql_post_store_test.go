@@ -492,31 +492,26 @@ func TestPostStorePermanentDeleteBeforeTime(t *testing.T) {
 			UserId:    model.NewId(),
 			ChannelId: model.NewId(),
 			CreateAt:  10001,
-			Message:   "file.txt",
 		},
 		{
 			UserId:    model.NewId(),
 			ChannelId: model.NewId(),
 			CreateAt:  10002,
-			Message:   "file.txt",
 		},
 		{
 			UserId:    model.NewId(),
 			ChannelId: model.NewId(),
 			CreateAt:  10003,
-			Message:   "file.txt",
 		},
 		{
 			UserId:    model.NewId(),
 			ChannelId: model.NewId(),
 			CreateAt:  10004,
-			Message:   "file.txt",
 		},
 		{
 			UserId:    model.NewId(),
 			ChannelId: model.NewId(),
 			CreateAt:  10010,
-			Message:   "file.txt",
 		},
 	}
 
@@ -541,6 +536,12 @@ func TestPostStorePermanentDeleteBeforeTime(t *testing.T) {
 	}
 	if result := <-store.Post().Get(posts[2].Id); result.Err != nil {
 		t.Fatal("shouldn't have deleted third oldest entry")
+	}
+	if result := <-store.Post().Get(posts[3].Id); result.Err != nil {
+		t.Fatal("shouldn't have deleted fourth oldest entry")
+	}
+	if result := <-store.Post().Get(posts[4].Id); result.Err != nil {
+		t.Fatal("shouldn't have deleted fifth oldest entry")
 	}
 	if result := <-store.Post().Get(posts[5].Id); result.Err != nil {
 		t.Fatal("shouldn't have deleted newest entry")

@@ -570,15 +570,37 @@ func (s SqlPostStore) PermanentDeleteBeforeTime(before int64, limit int) StoreCh
 	go func() {
 		result := StoreResult{}
 
-		if sqlResult, err := s.GetMaster().Exec(
-			`DELETE FROM
-				Posts
-			WHERE
-				CreateAt < :Before
-			ORDER BY
-				CreateAt
-			LIMIT
-				:Limit`, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
+		var query string
+		if utils.Cfg.SqlSettings.DriverName == model.DATABASE_DRIVER_POSTGRES {
+			query =
+				`DELETE FROM
+					Posts
+				WHERE
+					Id IN (
+						SELECT
+							Id
+						FROM
+							Posts
+						WHERE
+							CreateAt < :Before
+						ORDER BY
+							CreateAt
+						LIMIT
+							:Limit
+					)`
+		} else {
+			query =
+				`DELETE FROM
+					Posts
+				WHERE
+					CreateAt < :Before
+				ORDER BY
+					CreateAt
+				LIMIT
+					:Limit`
+		}
+
+		if sqlResult, err := s.GetMaster().Exec(query, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
 			result.Err = model.NewLocAppError("SqlPostStore.PermanentDeleteBeforeTime",
 				"store.sql_post.permanent_delete_before_time.app_error", nil, "err="+err.Error())
 		} else {

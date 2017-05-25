@@ -377,21 +377,49 @@ func (s SqlPreferenceStore) DeleteForPostsBeforeTime(before int64, limit int) St
 	go func() {
 		result := StoreResult{}
 
-		if sqlResult, err := s.GetMaster().Exec(
-			`DELETE FROM
-				Preferences
-			WHERE
-				Category = '`+model.PREFERENCE_CATEGORY_FLAGGED_POST+`'
-				AND Name IN (
-					SELECT
-						Id
-					FROM
-						Posts
-					WHERE
-						CreateAt < :Before
-				)
-			LIMIT
-				:Limit`, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
+		var query string
+		if utils.Cfg.SqlSettings.DriverName == model.DATABASE_DRIVER_POSTGRES {
+			query =
+				`DELETE FROM
+					Preferences
+				WHERE
+					ctid IN (
+						SELECT
+							ctid
+						FROM
+							Preferences
+						WHERE
+							Category = '` + model.PREFERENCE_CATEGORY_FLAGGED_POST + `'
+							AND Name IN (
+								SELECT
+									Id
+								FROM
+									Posts
+								WHERE
+									CreateAt < :Before
+							)
+						LIMIT
+							:Limit
+					)`
+		} else {
+			query =
+				`DELETE FROM
+					Preferences
+				WHERE
+					Category = '` + model.PREFERENCE_CATEGORY_FLAGGED_POST + `'
+					AND Name IN (
+						SELECT
+							Id
+						FROM
+							Posts
+						WHERE
+							CreateAt < :Before
+					)
+				LIMIT
+					:Limit`
+		}
+
+		if sqlResult, err := s.GetMaster().Exec(query, map[string]interface{}{"Before": before, "Limit": limit}); err != nil {
 			result.Err = model.NewLocAppError("SqlPreferenceStore.DeleteForPostsBeforeTime",
 				"store.sql_preference.delete_for_posts_before_time.app_error", nil, "err="+err.Error())
 		} else {
