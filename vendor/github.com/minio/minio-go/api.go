@@ -568,6 +568,12 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		// provides a cleaner compatible API across "us-east-1" and
 		// China region.
 		location = "cn-north-1"
+	} else if s3utils.IsAmazonGovCloudEndpoint(c.endpointURL) {
+		// For govcloud specifically we need to set everything to
+		// gov-us-west-1 for now, there is no easier way until AWS S3
+		// provides a cleaner compatible API across "us-east-1" and
+		// AWS gov region.
+		location = "us-gov-west-1"
 	}
 
 	// Gather location only if bucketName is present.
@@ -695,8 +701,11 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 			// http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 			host = c.s3AccelerateEndpoint
 		} else {
-			// Fetch new host based on the bucket location.
-			host = getS3Endpoint(bucketLocation)
+			// Do not change the host if the endpoint URL is a FIPS S3 endpoint.
+			if !s3utils.IsAmazonFIPSGovCloudEndpoint(c.endpointURL) {
+				// Fetch new host based on the bucket location.
+				host = getS3Endpoint(bucketLocation)
+			}
 		}
 	}
 
