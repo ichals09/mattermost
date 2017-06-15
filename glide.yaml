@@ -28,8 +28,6 @@ import:
 - package: github.com/mattermost/rsc
   subpackages:
   - qr
-- package: github.com/minio/minio-go
-  version: v2.0.4
 - package: github.com/mssola/user_agent
   version: v0.4.1
 - package: github.com/nicksnyder/go-i18n
@@ -59,9 +57,6 @@ import:
   version: v2.0.3
   subpackages:
   - store/memstore
-- package: github.com/segmentio/analytics-go
-  version: 2.1.1
-- package: github.com/rsc/letsencrypt
 - package: github.com/prometheus/client_golang
   version: v0.8.0
   subpackages:
@@ -83,10 +78,6 @@ import:
   subpackages:
   - pbutil
 - package: github.com/prometheus/procfs
-- package: github.com/spf13/cobra
-- package: github.com/spf13/pflag
-- package: github.com/dyatlov/go-opengraph
-  subpackages:
-  - opengraph
 - package: github.com/cpanato/html2text
-
+- package: github.com/minio/minio-go
+  version: f6d5df6b625c00c3180ec6c9240ea710620c7070
