@@ -527,10 +527,14 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		// For errors verify if its retryable otherwise fail quickly.
 		errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
 		// Bucket region if set in error response, we can retry the
-		// request with the new region.
-		if errResponse.Region != "" {
-			c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
-			continue // Retry.
+		//
+		// Additionally we should only retry if bucketLocation and custom
+		// region is empty.
+		if metadata.bucketLocation == "" {
+			if res.StatusCode == http.StatusBadRequest && errResponse.Region != "" {
+				c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
+				continue // Retry.
+			}
 		}
 
 		// Verify if error response code is retryable.
