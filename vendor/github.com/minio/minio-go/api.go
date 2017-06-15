@@ -560,32 +560,21 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		method = "POST"
 	}
 
-	// Default all requests to "us-east-1" or "cn-north-1" (china region)
-	location := "us-east-1"
-	if s3utils.IsAmazonChinaEndpoint(c.endpointURL) {
-		// For china specifically we need to set everything to
-		// cn-north-1 for now, there is no easier way until AWS S3
-		// provides a cleaner compatible API across "us-east-1" and
-		// China region.
-		location = "cn-north-1"
-	} else if s3utils.IsAmazonGovCloudEndpoint(c.endpointURL) {
-		// For govcloud specifically we need to set everything to
-		// gov-us-west-1 for now, there is no easier way until AWS S3
-		// provides a cleaner compatible API across "us-east-1" and
-		// AWS gov region.
-		location = "us-gov-west-1"
-	}
-
 	// Gather location only if bucketName is present.
-	if metadata.bucketName != "" {
+	if metadata.bucketName != "" && metadata.bucketLocation == "" {
+		var location string
 		location, err = c.getBucketLocation(metadata.bucketName)
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	// Save location.
-	metadata.bucketLocation = location
+		// Save the new location, if empty default to "us-east-1".
+		if location != "" {
+			metadata.bucketLocation = location
+		} else {
+			metadata.bucketLocation = "us-east-1"
+		}
+	}
 
 	// Construct a new target URL.
 	targetURL, err := c.makeTargetURL(metadata.bucketName, metadata.objectName, metadata.bucketLocation, metadata.queryValues)
@@ -609,7 +598,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 			req = s3signer.PreSignV2(*req, c.accessKeyID, c.secretAccessKey, metadata.expires)
 		} else {
 			// Presign URL with signature v4.
-			req = s3signer.PreSignV4(*req, c.accessKeyID, c.secretAccessKey, location, metadata.expires)
+			req = s3signer.PreSignV4(*req, c.accessKeyID, c.secretAccessKey, metadata.bucketLocation, metadata.expires)
 		}
 		return req, nil
 	}
@@ -669,7 +658,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 			req = s3signer.SignV2(*req, c.accessKeyID, c.secretAccessKey)
 		} else if c.signature.isV4() {
 			// Add signature version '4' authorization header.
-			req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, location)
+			req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, metadata.bucketLocation)
 		}
 	}
 
