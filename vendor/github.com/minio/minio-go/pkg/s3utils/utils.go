@@ -79,6 +79,17 @@ func IsVirtualHostSupported(endpointURL url.URL, bucketName string) bool {
 	return IsAmazonEndpoint(endpointURL) || IsGoogleEndpoint(endpointURL)
 }
 
+// IsAmazonEndpoint - Match if it is exactly Amazon S3 endpoint.
+func IsAmazonEndpoint(endpointURL url.URL) bool {
+	if IsAmazonChinaEndpoint(endpointURL) {
+		return true
+	}
+	if IsAmazonGovCloudEndpoint(endpointURL) {
+		return true
+	}
+	return endpointURL.Host == "s3.amazonaws.com"
+}
+
 // IsAmazonGovCloudEndpoint - Match if it is exactly Amazon S3 GovCloud endpoint.
 func IsAmazonGovCloudEndpoint(endpointURL url.URL) bool {
 	if endpointURL == sentinelURL {
@@ -94,18 +105,6 @@ func IsAmazonFIPSGovCloudEndpoint(endpointURL url.URL) bool {
 		return false
 	}
 	return endpointURL.Host == "s3-fips-us-gov-west-1.amazonaws.com"
-}
-
-// IsAmazonEndpoint - Match if it is exactly Amazon S3 endpoint.
-func IsAmazonEndpoint(endpointURL url.URL) bool {
-	if IsAmazonChinaEndpoint(endpointURL) {
-		return true
-	}
-	if IsAmazonGovCloudEndpoint(endpointURL) {
-		return true
-	}
-
-	return endpointURL.Host == "s3.amazonaws.com"
 }
 
 // IsAmazonChinaEndpoint - Match if it is exactly Amazon S3 China endpoint.

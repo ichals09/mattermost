@@ -17,7 +17,6 @@
 package minio
 
 import (
-	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
 	"hash"
@@ -109,14 +108,24 @@ func getReaderSize(reader io.Reader) (size int64, err error) {
 			case "|0", "|1":
 				return
 			}
-			size = st.Size()
+			var pos int64
+			pos, err = v.Seek(0, 1) // SeekCurrent.
+			if err != nil {
+				return -1, err
+			}
+			size = st.Size() - pos
 		case *Object:
 			var st ObjectInfo
 			st, err = v.Stat()
 			if err != nil {
 				return
 			}
-			size = st.Size
+			var pos int64
+			pos, err = v.Seek(0, 1) // SeekCurrent.
+			if err != nil {
+				return -1, err
+			}
+			size = st.Size - pos
 		}
 	}
 	// Returns the size here.
@@ -125,7 +134,7 @@ func getReaderSize(reader io.Reader) (size int64, err error) {
 
 // completedParts is a collection of parts sortable by their part numbers.
 // used for sorting the uploaded parts before completing the multipart request.
-type completedParts []completePart
+type completedParts []CompletePart
 
 func (a completedParts) Len() int           { return len(a) }
 func (a completedParts) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
@@ -143,7 +152,6 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 // NOTE: Google Cloud Storage does not implement Amazon S3 Compatible multipart PUT.
 // So we fall back to single PUT operation with the maximum limit of 5GiB.
 //
-// NOTE: For anonymous requests Amazon S3 doesn't allow multipart upload. So we fall back to single PUT operation.
 func (c Client) PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int64, err error) {
 	return c.PutObjectWithProgress(bucketName, objectName, reader, contentType, nil)
 }
@@ -201,40 +209,29 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 	hashAlgos := make(map[string]hash.Hash)
 	hashSums := make(map[string][]byte)
 	hashAlgos["md5"] = md5.New()
-	if c.signature.isV4() && !c.secure {
+	if c.overrideSignerType.IsV4() && !c.secure {
 		hashAlgos["sha256"] = sha256.New()
 	}
 
-	if size <= minPartSize {
-		// Initialize a new temporary buffer.
-		tmpBuffer := new(bytes.Buffer)
-		size, err = hashCopyN(hashAlgos, hashSums, tmpBuffer, reader, size)
-		reader = bytes.NewReader(tmpBuffer.Bytes())
-		tmpBuffer.Reset()
-	} else {
-		// Initialize a new temporary file.
-		var tmpFile *tempFile
-		tmpFile, err = newTempFile("single$-putobject-single")
-		if err != nil {
-			return 0, err
-		}
-		defer tmpFile.Close()
-		size, err = hashCopyN(hashAlgos, hashSums, tmpFile, reader, size)
-		if err != nil {
-			return 0, err
-		}
-		// Seek back to beginning of the temporary file.
-		if _, err = tmpFile.Seek(0, 0); err != nil {
-			return 0, err
-		}
-		reader = tmpFile
-	}
-	// Return error if its not io.EOF.
+	// Initialize a new temporary file.
+	tmpFile, err := newTempFile("single$-putobject-single")
 	if err != nil {
-		if err != io.EOF {
-			return 0, err
-		}
+		return 0, err
 	}
+	defer tmpFile.Close()
+
+	size, err = hashCopyN(hashAlgos, hashSums, tmpFile, reader, size)
+	// Return error if its not io.EOF.
+	if err != nil && err != io.EOF {
+		return 0, err
+	}
+
+	// Seek back to beginning of the temporary file.
+	if _, err = tmpFile.Seek(0, 0); err != nil {
+		return 0, err
+	}
+	reader = tmpFile
+
 	// Execute put object.
 	st, err := c.putObjectDo(bucketName, objectName, reader, hashSums["md5"], hashSums["sha256"], size, metaData)
 	if err != nil {

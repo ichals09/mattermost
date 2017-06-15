@@ -1,5 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015, 2016 Minio, Inc.
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage
+ * (C) 2015, 2016, 2017 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +19,13 @@ package minio
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path"
 
 	"github.com/minio/minio-go/pkg/policy"
-	"github.com/minio/minio-go/pkg/s3signer"
 )
 
 /// Bucket operations
@@ -41,7 +37,14 @@ import (
 //
 // For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
 // For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
-func (c Client) MakeBucket(bucketName string, location string) error {
+func (c Client) MakeBucket(bucketName string, location string) (err error) {
+	defer func() {
+		// Save the location into cache on a successful makeBucket response.
+		if err == nil {
+			c.bucketLocCache.Set(bucketName, location)
+		}
+	}()
+
 	// Validate the input arguments.
 	if err := isValidBucketName(bucketName); err != nil {
 		return err
@@ -50,16 +53,46 @@ func (c Client) MakeBucket(bucketName string, location string) error {
 	// If location is empty, treat is a default region 'us-east-1'.
 	if location == "" {
 		location = "us-east-1"
+		// For custom region clients, default
+		// to custom region instead not 'us-east-1'.
+		if c.region != "" {
+			location = c.region
+		}
 	}
 
-	// Instantiate the request.
-	req, err := c.makeBucketRequest(bucketName, location)
-	if err != nil {
-		return err
+	// Try creating bucket with the provided region, in case of
+	// invalid region error let's guess the appropriate region
+	// from S3 API headers
+
+	// Create a done channel to control 'newRetryTimer' go routine.
+	doneCh := make(chan struct{}, 1)
+
+	// Indicate to our routine to exit cleanly upon return.
+	defer close(doneCh)
+
+	// PUT bucket request metadata.
+	reqMetadata := requestMetadata{
+		bucketName:     bucketName,
+		bucketLocation: location,
 	}
 
-	// Execute the request.
-	resp, err := c.do(req)
+	// If location is not 'us-east-1' create bucket location config.
+	if location != "us-east-1" && location != "" {
+		createBucketConfig := createBucketConfiguration{}
+		createBucketConfig.Location = location
+		var createBucketConfigBytes []byte
+		createBucketConfigBytes, err = xml.Marshal(createBucketConfig)
+		if err != nil {
+			return err
+		}
+		reqMetadata.contentMD5Bytes = sumMD5(createBucketConfigBytes)
+		reqMetadata.contentSHA256Bytes = sum256(createBucketConfigBytes)
+		reqMetadata.contentBody = bytes.NewReader(createBucketConfigBytes)
+		reqMetadata.contentLength = int64(len(createBucketConfigBytes))
+	}
+
+	// Execute PUT to create a new bucket.
+	resp, err := c.executeMethod("PUT", reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -71,74 +104,8 @@ func (c Client) MakeBucket(bucketName string, location string) error {
 		}
 	}
 
-	// Save the location into cache on a successful makeBucket response.
-	c.bucketLocCache.Set(bucketName, location)
-
-	// Return.
+	// Success.
 	return nil
-}
-
-// makeBucketRequest constructs request for makeBucket.
-func (c Client) makeBucketRequest(bucketName string, location string) (*http.Request, error) {
-	// Validate input arguments.
-	if err := isValidBucketName(bucketName); err != nil {
-		return nil, err
-	}
-
-	// In case of Amazon S3.  The make bucket issued on already
-	// existing bucket would fail with 'AuthorizationMalformed' error
-	// if virtual style is used. So we default to 'path style' as that
-	// is the preferred method here. The final location of the
-	// 'bucket' is provided through XML LocationConstraint data with
-	// the request.
-	targetURL := c.endpointURL
-	targetURL.Path = path.Join(bucketName, "") + "/"
-
-	// get a new HTTP request for the method.
-	req, err := http.NewRequest("PUT", targetURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// set UserAgent for the request.
-	c.setUserAgent(req)
-
-	// set sha256 sum for signature calculation only with signature version '4'.
-	if c.signature.isV4() {
-		req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256([]byte{})))
-	}
-
-	// If location is not 'us-east-1' create bucket location config.
-	if location != "us-east-1" && location != "" {
-		createBucketConfig := createBucketConfiguration{}
-		createBucketConfig.Location = location
-		var createBucketConfigBytes []byte
-		createBucketConfigBytes, err = xml.Marshal(createBucketConfig)
-		if err != nil {
-			return nil, err
-		}
-		createBucketConfigBuffer := bytes.NewBuffer(createBucketConfigBytes)
-		req.Body = ioutil.NopCloser(createBucketConfigBuffer)
-		req.ContentLength = int64(len(createBucketConfigBytes))
-		// Set content-md5.
-		req.Header.Set("Content-Md5", base64.StdEncoding.EncodeToString(sumMD5(createBucketConfigBytes)))
-		if c.signature.isV4() {
-			// Set sha256.
-			req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256(createBucketConfigBytes)))
-		}
-	}
-
-	// Sign the request.
-	if c.signature.isV4() {
-		// Signature calculated for MakeBucket request should be for 'us-east-1',
-		// regardless of the bucket's location constraint.
-		req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
-	} else if c.signature.isV2() {
-		req = s3signer.SignV2(*req, c.accessKeyID, c.secretAccessKey)
-	}
-
-	// Return signed request.
-	return req, nil
 }
 
 // SetBucketPolicy set the access permissions on an existing bucket.
@@ -157,11 +124,14 @@ func (c Client) SetBucketPolicy(bucketName string, objectPrefix string, bucketPo
 	if err := isValidObjectPrefix(objectPrefix); err != nil {
 		return err
 	}
+
 	if !bucketPolicy.IsValidBucketPolicy() {
 		return ErrInvalidArgument(fmt.Sprintf("Invalid bucket policy provided. %s", bucketPolicy))
 	}
-	policyInfo, err := c.getBucketPolicy(bucketName, objectPrefix)
-	if err != nil {
+
+	policyInfo, err := c.getBucketPolicy(bucketName)
+	errResponse := ToErrorResponse(err)
+	if err != nil && errResponse.Code != "NoSuchBucketPolicy" {
 		return err
 	}
 
@@ -236,8 +206,9 @@ func (c Client) removeBucketPolicy(bucketName string) error {
 
 	// Execute DELETE on objectName.
 	resp, err := c.executeMethod("DELETE", requestMetadata{
-		bucketName:  bucketName,
-		queryValues: urlValues,
+		bucketName:         bucketName,
+		queryValues:        urlValues,
+		contentSHA256Bytes: emptySHA256,
 	})
 	defer closeResponse(resp)
 	if err != nil {
