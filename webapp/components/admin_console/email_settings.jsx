@@ -87,7 +87,7 @@ export default class EmailSettings extends AdminSettings {
                 >
                     <FormattedHTMLMessage
                         id='admin.email.enableEmailBatching.clusterEnabled'
-                        defaultMessage='Email batching cannot be enabled unless the SiteURL is configured in <b>Configuration > SiteURL</b>.'
+                        defaultMessage='To enable email batching, Site URL must be configured in <b>Configuration > Site URL</b>.'
                     />
                 </span>
             );
@@ -136,7 +136,7 @@ export default class EmailSettings extends AdminSettings {
                         <FormattedHTMLMessage
                             key='admin.email.enableEmailBatchingDesc'
                             id='admin.email.enableEmailBatchingDesc'
-                            defaultMessage='When true, users can have email notifications for multiple direct messages and mentions combined into a single email, configurable in <b>Account Settings > Notifications</b>.'
+                            defaultMessage='When true, users can have email notifications for multiple direct messages and mentions combined into a single email, configurable in <b>Account Settings > Notifications</b>. Email batching in High Availability mode is planned but not yet supported.'
                         />,
                         enableEmailBatchingDisabledText
                     ]}
