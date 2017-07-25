@@ -6,12 +6,77 @@ package store
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
 )
+
+func TestGuidAsPrimaryKey(t *testing.T) {
+	Setup()
+	layeredStore := store.(*LayeredStore)
+
+	// Removing the full text indexes to more accurately guage insertions for PK and
+	// other indexes since this will move to Elastic Search
+	layeredStore.DatabaseLayer.RemoveIndexIfExists("idx_posts_message_txt", "Posts")
+	layeredStore.DatabaseLayer.RemoveIndexIfExists("idx_posts_hashtags_txt", "Posts")
+
+	Gibberish := "Snorted tidy stiffly against one fiendishly began burst hey revealed a beside the soothingly ceremonially affirmatively cowered when fitted this static hello emoted assenting however while far that gross besides because and dear."
+	AmmountToLoadAmmount := 20000000
+	ReportingInterval := 100000
+	NumberOfThreads := 10
+	currentCount := 0
+	count := 0
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	if v, err := layeredStore.DatabaseLayer.GetReplica().SelectInt("SELECT Count(*) FROM Posts"); err != nil {
+		t.Fatal(err)
+	} else {
+		currentCount = int(v)
+		println(fmt.Sprintf("Found %v rows to start", currentCount))
+	}
+
+	start := model.GetMillis()
+
+	for j := 0; j < NumberOfThreads; j++ {
+		wg.Add(1)
+		go func() {
+			for {
+				mu.Lock()
+
+				if currentCount+count >= AmmountToLoadAmmount {
+					mu.Unlock()
+					wg.Done()
+					return
+				}
+
+				count = count + 1
+
+				if count%ReportingInterval == 0 {
+					totalMillis := model.GetMillis() - start
+					println(fmt.Sprintf("Took %v seconds to add %v rows for a total of %v", totalMillis/1000, ReportingInterval, currentCount+count))
+					start = model.GetMillis()
+				}
+
+				mu.Unlock()
+
+				p := model.Post{}
+				p.ChannelId = model.NewId()
+				p.UserId = model.NewId()
+				p.Message = Gibberish
+
+				if err := (<-store.Post().Save(&p)).Err; err != nil {
+					t.Fatal("couldn't save item", err)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+}
 
 func TestPostStoreSave(t *testing.T) {
 	Setup()

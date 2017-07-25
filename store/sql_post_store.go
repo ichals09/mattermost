@@ -67,8 +67,8 @@ func (s SqlPostStore) CreateIndexesIfNotExists() {
 	s.CreateIndexIfNotExists("idx_posts_user_id", "Posts", "UserId")
 	s.CreateIndexIfNotExists("idx_posts_is_pinned", "Posts", "IsPinned")
 
-	s.CreateFullTextIndexIfNotExists("idx_posts_message_txt", "Posts", "Message")
-	s.CreateFullTextIndexIfNotExists("idx_posts_hashtags_txt", "Posts", "Hashtags")
+	//s.CreateFullTextIndexIfNotExists("idx_posts_message_txt", "Posts", "Message")
+	//s.CreateFullTextIndexIfNotExists("idx_posts_hashtags_txt", "Posts", "Hashtags")
 }
 
 func (s SqlPostStore) Save(post *model.Post) StoreChannel {
