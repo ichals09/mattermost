@@ -32,7 +32,7 @@ func TestGuidAsPrimaryKey(t *testing.T) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	if v, err := layeredStore.DatabaseLayer.GetReplica().SelectInt("SELECT Count(*) FROM Posts"); err != nil {
+	if v, err := layeredStore.DatabaseLayer.GetReplica().SelectInt("SELECT Count(UserId) FROM Posts"); err != nil {
 		t.Fatal(err)
 	} else {
 		currentCount = int(v)
