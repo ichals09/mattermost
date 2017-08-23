@@ -5,6 +5,7 @@ package store
 
 import (
 	"github.com/mattermost/platform/model"
+	"net/http"
 )
 
 type sqlClusterDiscoveryStore struct {
@@ -40,7 +41,7 @@ func (s sqlClusterDiscoveryStore) Save(ClusterDiscovery *model.ClusterDiscovery)
 		}
 
 		if err := s.GetMaster().Insert(ClusterDiscovery); err != nil {
-			result.Err = model.NewLocAppError("SqlClusterDiscoveryStore.Save", "Failed to save ClusterDiscovery row", nil, err.Error())
+			result.Err = model.NewAppError("SqlClusterDiscoveryStore.Save", "Failed to save ClusterDiscovery row", nil, err.Error(), http.StatusInternalServerError)
 		}
 
 		storeChannel <- result
@@ -73,7 +74,7 @@ func (s sqlClusterDiscoveryStore) Delete(ClusterDiscovery *model.ClusterDiscover
 				"Hostname":    ClusterDiscovery.Hostname,
 			},
 		); err != nil {
-			result.Err = model.NewLocAppError("SqlClusterDiscoveryStore.Delete", "Failed to delete", nil, err.Error())
+			result.Err = model.NewAppError("SqlClusterDiscoveryStore.Delete", "Failed to delete", nil, err.Error(), http.StatusInternalServerError)
 		} else {
 			if count > 0 {
 				result.Data = true
@@ -111,7 +112,7 @@ func (s sqlClusterDiscoveryStore) Exists(ClusterDiscovery *model.ClusterDiscover
 				"Hostname":    ClusterDiscovery.Hostname,
 			},
 		); err != nil {
-			result.Err = model.NewLocAppError("SqlClusterDiscoveryStore.Exists", "Failed to check if it exists", nil, err.Error())
+			result.Err = model.NewAppError("SqlClusterDiscoveryStore.Exists", "Failed to check if it exists", nil, err.Error(), http.StatusInternalServerError)
 		} else {
 			if count > 0 {
 				result.Data = true
@@ -153,7 +154,7 @@ func (s sqlClusterDiscoveryStore) GetAll(ClusterDiscoveryType, clusterName strin
 				"LastPingAt":           lastPingAt,
 			},
 		); err != nil {
-			result.Err = model.NewLocAppError("SqlClusterDiscoveryStore.GetAllForType", "Failed to get all disoery rows", nil, err.Error())
+			result.Err = model.NewAppError("SqlClusterDiscoveryStore.GetAllForType", "Failed to get all disoery rows", nil, err.Error(), http.StatusInternalServerError)
 		} else {
 			result.Data = list
 		}
@@ -188,7 +189,7 @@ func (s sqlClusterDiscoveryStore) SetLastPingAt(ClusterDiscovery *model.ClusterD
 				"Hostname":    ClusterDiscovery.Hostname,
 			},
 		); err != nil {
-			result.Err = model.NewLocAppError("SqlClusterDiscoveryStore.GetAllForType", "Failed to update last ping at", nil, err.Error())
+			result.Err = model.NewAppError("SqlClusterDiscoveryStore.GetAllForType", "Failed to update last ping at", nil, err.Error(), http.StatusInternalServerError)
 		}
 
 		storeChannel <- result
@@ -215,7 +216,7 @@ func (s sqlClusterDiscoveryStore) Cleanup() StoreChannel {
 				"LastPingAt": model.GetMillis() - model.CDS_OFFLINE_AFTER_MILLIS,
 			},
 		); err != nil {
-			result.Err = model.NewLocAppError("SqlClusterDiscoveryStore.Save", "Failed to save ClusterDiscovery row", nil, err.Error())
+			result.Err = model.NewAppError("SqlClusterDiscoveryStore.Save", "Failed to save ClusterDiscovery row", nil, err.Error(), http.StatusInternalServerError)
 		}
 
 		storeChannel <- result
