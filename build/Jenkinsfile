@@ -8,9 +8,9 @@ pipeline {
 
     agent {
         kubernetes {
-            label 'myspecialslave'
+            label 'myspecialslave2'
             containerTemplate {
-                name 'mysql'
+                name 'mattermost-mysql'
                 image 'mysql:5.7'
                 ContainerEnvVar (
                     key: 'MYSQL_ROOT_PASSWORD',
@@ -32,13 +32,13 @@ pipeline {
                 hostPost 3306
             }
             containerTemplate {
-                name 'postgres'
+                name 'mattermost-postgres'
                 image 'postgres:9.4'
                 containerPort 5432
                 hostPost 5432
             }
             containerTemplate {
-                name 'golang'
+                name 'mattermost-golang'
                 image 'golang:1.8'
                 ttyEnabled true
                 command 'cat'
@@ -49,6 +49,10 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
+                container('mattermost-mysql') {
+                    sh 'whoami'
+                }
+
                 // Checkout platform
                 dir('platform') {
                     git branch: env.BRANCH_NAME, credentialsId: '5f3e0d1c-1c0e-4e88-8e53-80743eac981b', url: 'https://github.com/mattermost/platform.git'
@@ -73,12 +77,12 @@ pipeline {
         stage('Tests') {
             steps {
                 parallel(checkstyle: {
-                    container('golang') {
+                    container('mattermost-golang') {
                         sh 'cd /go/src/github.com/mattermost/platform && make check-style'
                     }
                 },
                 test: {
-                    container('golang') {
+                    container('mattermost-golang') {
                         sh 'cd /go/src/github.com/mattermost/platform && make test'
                     }
                 })
@@ -86,7 +90,7 @@ pipeline {
         }
         stage('Package') {
             steps {
-                container('golang') {
+                container('mattermost-golang') {
                     sh 'cd /go/src/github.com/mattermost/platform && make package'
                 }
             }
