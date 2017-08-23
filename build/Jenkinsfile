@@ -36,6 +36,7 @@ podTemplate(label: 'jenkins-slave',
             sh 'ln -s `pwd`/enterprise /go/src/github.com/mattermost/enterprise'
                 
             // Modify config to run on jenkins
+            sh 'mv /go/src/github.com/mattermost/platform/config/default.json /go/src/github.com/mattermost/platform/config/config.json'
             sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
         }
     }
