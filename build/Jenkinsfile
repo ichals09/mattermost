@@ -8,7 +8,7 @@ pipeline {
 
     agent {
         kubernetes {
-            label 'jenkins-slave'
+            label 'myspecialslave'
             containerTemplate {
                 name 'mysql'
                 image 'mysql:5.7'
@@ -31,18 +31,18 @@ pipeline {
                 containerPort 3306
                 hostPost 3306
             }
-            //containerTemplate {
-                //name 'postgres'
-                //image 'postgres:9.4'
-                //containerPort 5432
-                //hostPost 5432
-            //}
-            //containerTemplate {
-                //name 'golang'
-                //image 'golang:1.8'
-                //ttyEnabled true
-                //command 'cat'
-            //}
+            containerTemplate {
+                name 'postgres'
+                image 'postgres:9.4'
+                containerPort 5432
+                hostPost 5432
+            }
+            containerTemplate {
+                name 'golang'
+                image 'golang:1.8'
+                ttyEnabled true
+                command 'cat'
+            }
         }
     }
 
