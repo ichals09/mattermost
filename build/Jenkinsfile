@@ -9,7 +9,7 @@ podTemplate(label: 'jenkins-slave',
             envVars: [
                 containerEnvVar(key: 'MYSQL_ROOT_PASSWORD', value: 'mostest'),
                 containerEnvVar(key: 'MYSQL_USER', value: 'mmuser'),
-                containerEnvVar(key: 'MYSQL_PASSWORD', value: 'mmuser'),
+                containerEnvVar(key: 'MYSQL_PASSWORD', value: 'mostest'),
                 containerEnvVar(key: 'MYSQL_DATABASE', value: 'mattermost_test')
             ],
         ),
