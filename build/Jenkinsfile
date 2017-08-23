@@ -1,94 +1,67 @@
 #!/usr/bin/env groovy
 
-pipeline {
-
-    options {
-        skipDefaultCheckout true
-    }
-
-    agent {
-        kubernetes {
-            label 'jenkins-slave'
-            containerTemplate {
-                name 'mysql'
-                image 'mysql:5.7'
-                ContainerEnvVar (
-                    key: 'MYSQL_ROOT_PASSWORD',
-                    value: 'mostest'
-                )
-                ContainerEnvVar (
-                    key: 'MYSQL_USER',
-                    value: 'mmuser'
-                )
-                ContainerEnvVar (
-                    key: 'MYSQL_PASSWORD',
-                    value: 'mostest'
-                )
-                ContainerEnvVar (
-                    key: 'MYSQL_DATABASE',
-                    value: 'mattermost_test'
-                )
-                containerPort 3306
-                hostPost 3306
+podTemplate(label: 'jenkins-slave', 
+    containers: [
+        containerTemplate(
+            name: 'mattermost-mysql',
+            image: 'mysql:5.7',
+            ports: [portMapping(name: 'mysql', containerPort: 3306, hostPort: 3306)],
+            envVars: [
+                containerEnvVar(key: 'MYSQL_ROOT_PASSWORD', value: 'mostest'),
+                containerEnvVar(key: 'MYSQL_USER', value: 'mmuser'),
+                containerEnvVar(key: 'MYSQL_PASSWORD', value: 'mmuser'),
+                containerEnvVar(key: 'MYSQL_DATABASE', value: 'mattermost_test')
+            ],
+        ),
+        containerTemplate(name: 'golang', image: 'golang:1.8', ttyEnabled: true, command: 'cat')
+    ])
+{
+  node('testing') {
+    stage('Checkout') {
+        container('golang') {
+            // Checkout platform
+            dir('platform') {
+                git branch: env.BRANCH_NAME, credentialsId: '5f3e0d1c-1c0e-4e88-8e53-80743eac981b', url: 'https://github.com/mattermost/platform.git'
             }
-            //containerTemplate {
-                //name 'postgres'
-                //image 'postgres:9.4'
-                //containerPort 5432
-                //hostPost 5432
-            //}
-            //containerTemplate {
-                //name 'golang'
-                //image 'golang:1.8'
-                //ttyEnabled true
-                //command 'cat'
-            //}
+
+            // Checkout enterprise
+            dir('enterprise') {
+                git branch: 'master', credentialsId: '5f3e0d1c-1c0e-4e88-8e53-80743eac981b', url: 'https://github.com/mattermost/enterprise.git'
+                sh "git checkout ${env.BRANCH_NAME} || echo 'NO EE BRANCH'"
+            }
+
+            // Link up the code to GOPATH.
+            sh 'mkdir -p /go/src/github.com/mattermost'
+            sh 'ln -s `pwd`/platform /go/src/github.com/mattermost/platform'
+            sh 'ln -s `pwd`/enterprise /go/src/github.com/mattermost/enterprise'
+                
+            // Modify config to run on jenkins
+            sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
         }
     }
-
-    stages {
-        stage('Checkout') {
-            steps {
-                // Checkout platform
-                dir('platform') {
-                    git branch: env.BRANCH_NAME, credentialsId: '5f3e0d1c-1c0e-4e88-8e53-80743eac981b', url: 'https://github.com/mattermost/platform.git'
-                }
-
-                // Checkout enterprise
-                dir('enterprise') {
-                    git branch: 'master', credentialsId: '5f3e0d1c-1c0e-4e88-8e53-80743eac981b', url: 'https://github.com/mattermost/enterprise.git'
-                    sh "git checkout ${env.BRANCH_NAME} || echo 'NO EE BRANCH'"
-                }
-
-                // Link up the code to GOPATH.
-                sh 'mkdir -p /go/src/github.com/mattermost'
-                sh 'ln -s `pwd`/platform /go/src/github.com/mattermost/platform'
-                sh 'ln -s `pwd`/enterprise /go/src/github.com/mattermost/enterprise'
-                    
-                // Modify config to run on jenkins
-                sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
-            }
-        }
-        stage('Tests') {
-            steps {
-                parallel(checkstyle: {
-                    container('golang') {
-                        sh 'cd /go/src/github.com/mattermost/platform && make check-style'
-                    }
-                },
-                test: {
-                    container('golang') {
-                        sh 'cd /go/src/github.com/mattermost/platform && make test'
-                    }
-                })
-            }
-        }
-        stage('Package') {
-            steps {
+    stage('Build') {
+            parallel(checkstyle: {
                 container('golang') {
-                    sh 'cd /go/src/github.com/mattermost/platform && make package'
+                    sh 'cd /go/src/github.com/mattermost/platform && make check-style'
                 }
-            }
+            },
+            test: {
+                container('golang') {
+                    sh 'cd /go/src/github.com/mattermost/platform && make test'
+                }
+            })
+    }
+    stage('Unit Tests') {
+        container('golang') {
+            sh 'cd /go/src/github.com/mattermost/platform && make package'
+        }
+        container('mattermost-mysql'){
+            sh 'echo hey'
+        }
+        container('golang') {
+            sh 'sed -i \'s/dockerhost/localhost/g\' config/config.json'
+            sh 'cd /go/src/github.com/mattermost/platform && go test -test.v -test.timeout=2000s github.com/mattermost/platform/api4'
         }
     }
+  }
 }
