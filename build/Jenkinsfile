@@ -16,7 +16,7 @@ podTemplate(label: 'jenkins-slave',
         containerTemplate(name: 'golang', image: 'golang:1.8', ttyEnabled: true, command: 'cat')
     ])
 {
-  node('testing') {
+  node('jenkins-slave') {
     stage('Checkout') {
         container('golang') {
             // Checkout platform
