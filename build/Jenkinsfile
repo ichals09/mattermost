@@ -58,7 +58,7 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        )/*,
+        ),
         containerTemplate(
             name: 'mattermost-elasticsearch', 
             image: 'grundleborg/elasticsearch:latest', 
@@ -74,7 +74,7 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        ),
+        )/*,
         containerTemplate(
             name: 'mattermost-redis', 
             image: 'redis', 
@@ -104,14 +104,16 @@ podTemplate(label: 'jenkins-slave',
         }
     }
     stage('Prep Environment') {
-        // Link up the code to GOPATH.
-        sh 'mkdir -p /go/src/github.com/mattermost'
-        sh 'ln -s `pwd`/platform /go/src/github.com/mattermost/platform'
-        sh 'ln -s `pwd`/enterprise /go/src/github.com/mattermost/enterprise'
-            
-        // Modify config to run on jenkins
-        sh 'mv /go/src/github.com/mattermost/platform/config/default.json /go/src/github.com/mattermost/platform/config/config.json'
-        sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
+        container('golang') {
+            // Link up the code to GOPATH.
+            sh 'mkdir -p /go/src/github.com/mattermost'
+            sh 'ln -s `pwd`/platform /go/src/github.com/mattermost/platform'
+            sh 'ln -s `pwd`/enterprise /go/src/github.com/mattermost/enterprise'
+                
+            // Modify config to run on jenkins
+            sh 'mv /go/src/github.com/mattermost/platform/config/default.json /go/src/github.com/mattermost/platform/config/config.json'
+            sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
+        }
 
         // Setup openldap container
         container('mattermost-openldap') {
