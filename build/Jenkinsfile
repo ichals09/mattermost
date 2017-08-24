@@ -1,6 +1,10 @@
 #!/usr/bin/env groovy
 
 podTemplate(label: 'jenkins-slave', 
+    resourceRequestCpu: '2000m',
+    resourceLimitCpu: '4000m',
+    resourceRequestMemory: '2Gi',
+    resourceLimitMemory: '4Gi',
     containers: [
         containerTemplate(
             name: 'mattermost-mysql',
