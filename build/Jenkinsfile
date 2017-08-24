@@ -41,6 +41,9 @@ podTemplate(label: 'jenkins-slave',
         }
     }
     stage('Build') {
+        container('mattermost-mysql'){
+            sh 'echo hey'
+        }
         container('golang') {
             sh 'cd /go/src/github.com/mattermost/platform && make check-style'
             sh 'cd /go/src/github.com/mattermost/platform && make test'
@@ -49,9 +52,6 @@ podTemplate(label: 'jenkins-slave',
     stage('Unit Tests') {
         container('golang') {
             sh 'cd /go/src/github.com/mattermost/platform && make package'
-        }
-        container('mattermost-mysql'){
-            sh 'echo hey'
         }
         container('golang') {
             sh 'sed -i \'s/dockerhost/localhost/g\' config/config.json'
