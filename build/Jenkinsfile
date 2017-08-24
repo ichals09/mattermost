@@ -40,7 +40,7 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        ),
+        )/*,
         containerTemplate(
             name: 'mattermost-openldap', 
             image: 'osixia/openldap:1.1.6', 
@@ -85,7 +85,7 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        )
+        )*/
     ])
 {
   node('jenkins-slave') {
