@@ -34,7 +34,7 @@ podTemplate(label: 'jenkins-slave',
             image: 'jhillyerd/inbucket:latest', 
             ports: [
                 portMapping(name: 'inbucket1', hostPost: 9000, containerPort: 10080),
-                portMapping(name: 'inbucket2', hostPost: 2500, containerPort: 10025)
+                portMapping(name: 'inbucket2', hostPost: 2500, containerPort: 10025),
             ],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
@@ -46,7 +46,7 @@ podTemplate(label: 'jenkins-slave',
             image: 'osixia/openldap:1.1.6', 
             ports: [
                 portMapping(name: 'openldap1', hostPost: 389, containerPort: 389),
-                portMapping(name: 'openldap2', hostPost: 636, containerPort: 636)
+                portMapping(name: 'openldap2', hostPost: 636, containerPort: 636),
             ],
             envVars: [
                 containerEnvVar(key: 'LDAP_TLS_VERIFY_CLIENT', value: 'never'),
@@ -59,7 +59,7 @@ podTemplate(label: 'jenkins-slave',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
         ),
-        containerTemplate(
+        /*containerTemplate(
             name: 'mattermost-elasticsearch', 
             image: 'grundleborg/elasticsearch:latest', 
             ports: [
@@ -74,7 +74,7 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        ),
+        ),*/
         containerTemplate(
             name: 'mattermost-redis', 
             image: 'redis', 
