@@ -1,14 +1,15 @@
 #!/usr/bin/env groovy
 
 podTemplate(label: 'jenkins-slave', 
-    resourceRequestCpu: '2000m',
-    resourceLimitCpu: '4000m',
-    resourceRequestMemory: '2Gi',
-    resourceLimitMemory: '4Gi',
     containers: [
         containerTemplate(
             name: 'mattermost-mysql',
             image: 'mysql:5.7',
+            alwaysPullImage: true,
+            resourceRequestCpu: '2000m',
+            resourceLimitCpu: '4000m',
+            resourceRequestMemory: '2Gi',
+            resourceLimitMemory: '4Gi',
             ports: [portMapping(name: 'mysql', containerPort: 3306, hostPort: 3306)],
             envVars: [
                 containerEnvVar(key: 'MYSQL_ROOT_PASSWORD', value: 'mostest'),
@@ -17,7 +18,17 @@ podTemplate(label: 'jenkins-slave',
                 containerEnvVar(key: 'MYSQL_DATABASE', value: 'mattermost_test')
             ],
         ),
-        containerTemplate(name: 'golang', image: 'golang:1.8', ttyEnabled: true, command: 'cat')
+        containerTemplate(
+            name: 'golang', 
+            image: 'golang:1.8', 
+            ttyEnabled: true, 
+            command: 'cat',
+            alwaysPullImage: true,
+            resourceRequestCpu: '2000m',
+            resourceLimitCpu: '4000m',
+            resourceRequestMemory: '2Gi',
+            resourceLimitMemory: '4Gi'
+        )
     ])
 {
   node('jenkins-slave') {
