@@ -41,16 +41,10 @@ podTemplate(label: 'jenkins-slave',
         }
     }
     stage('Build') {
-            parallel(checkstyle: {
-                container('golang') {
-                    sh 'cd /go/src/github.com/mattermost/platform && make check-style'
-                }
-            },
-            test: {
-                container('golang') {
-                    sh 'cd /go/src/github.com/mattermost/platform && make test'
-                }
-            })
+        container('golang') {
+            sh 'cd /go/src/github.com/mattermost/platform && make check-style'
+            sh 'cd /go/src/github.com/mattermost/platform && make test'
+        }
     }
     stage('Unit Tests') {
         container('golang') {
