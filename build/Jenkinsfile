@@ -36,12 +36,12 @@ podTemplate(label: 'jenkins-slave',
         container('golang') {
             // Checkout platform
             dir('platform') {
-                git branch: env.BRANCH_NAME, credentialsId: '5f3e0d1c-1c0e-4e88-8e53-80743eac981b', url: 'https://github.com/mattermost/platform.git'
+                git branch: env.BRANCH_NAME, credentialsId: '8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/platform.git'
             }
 
             // Checkout enterprise
             dir('enterprise') {
-                git branch: 'master', credentialsId: '5f3e0d1c-1c0e-4e88-8e53-80743eac981b', url: 'https://github.com/mattermost/enterprise.git'
+                git branch: 'master', credentialsId: '8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/enterprise.git'
                 sh "git checkout ${env.BRANCH_NAME} || echo 'NO EE BRANCH'"
             }
 
