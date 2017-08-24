@@ -63,7 +63,7 @@ podTemplate(label: 'jenkins-slave',
             name: 'mattermost-elasticsearch', 
             image: 'grundleborg/elasticsearch:latest', 
             ports: [
-                portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200),
+                portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200)
             ],
             envVars: [
                 containerEnvVar(key: 'http.host', value: '0.0.0.0'),
