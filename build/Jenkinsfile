@@ -68,13 +68,13 @@ podTemplate(label: 'jenkins-slave',
             envVars: [
                 containerEnvVar(key: 'http.host', value: '0.0.0.0'),
                 containerEnvVar(key: 'transport.host', value: '127.0.0.1'),
-                containerEnvVar(key: 'ES_JAVA_OPTS', value: '-Xmx250m -Xmx250m'),
+                containerEnvVar(key: 'ES_JAVA_OPTS', value: '-Xmx250m -Xmx250m')
             ],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        )/*,
+        ),
         containerTemplate(
             name: 'mattermost-redis', 
             image: 'redis', 
@@ -85,7 +85,7 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        )*/
+        )
     ])
 {
   node('jenkins-slave') {
