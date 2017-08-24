@@ -79,7 +79,7 @@ podTemplate(label: 'jenkins-slave',
             name: 'mattermost-redis', 
             image: 'redis', 
             ports: [
-                portMapping(name: 'redis', hostPost: 6379, containerPort: 6379),
+                portMapping(name: 'redis', hostPost: 6379, containerPort: 6379)
             ],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
