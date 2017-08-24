@@ -51,7 +51,7 @@ podTemplate(label: 'jenkins-slave',
             envVars: [
                 containerEnvVar(key: 'LDAP_TLS_VERIFY_CLIENT', value: 'never'),
                 containerEnvVar(key: 'LDAP_ORGANISATION', value: 'Mattermost Test'),
-                containerEnvVar(key: 'LDPA_DOMAIN', value: 'mm.test.com'),
+                containerEnvVar(key: 'LDAP_DOMAIN', value: 'mm.test.com'),
                 containerEnvVar(key: 'LDAP_ADMIN_PASSWORD', value: 'mostest')
             ],
             resourceRequestCpu: '250m',
@@ -59,11 +59,11 @@ podTemplate(label: 'jenkins-slave',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
         ),
-        /*containerTemplate(
+        containerTemplate(
             name: 'mattermost-elasticsearch', 
             image: 'grundleborg/elasticsearch:latest', 
             ports: [
-                portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200)
+                portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200),
             ],
             envVars: [
                 containerEnvVar(key: 'http.host', value: '0.0.0.0'),
@@ -74,12 +74,12 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        ),*/
+        ),
         containerTemplate(
             name: 'mattermost-redis', 
             image: 'redis', 
             ports: [
-                portMapping(name: 'redis', hostPost: 6379, containerPort: 6379)
+                portMapping(name: 'redis', hostPost: 6379, containerPort: 6379),
             ],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
