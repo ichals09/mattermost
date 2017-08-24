@@ -5,7 +5,7 @@ podTemplate(label: 'jenkins-slave',
         containerTemplate(
             name: 'mattermost-mysql',
             image: 'mysql:5.7',
-            alwaysPullImage: true,
+            alwaysPullImage: false,
             resourceRequestCpu: '1500m',
             resourceLimitCpu: '2000m',
             resourceRequestMemory: '2Gi',
@@ -23,11 +23,68 @@ podTemplate(label: 'jenkins-slave',
             image: 'golang:1.8', 
             ttyEnabled: true, 
             command: 'cat',
-            alwaysPullImage: true,
+            alwaysPullImage: false,
             resourceRequestCpu: '1500m',
             resourceLimitCpu: '2000m',
             resourceRequestMemory: '2Gi',
             resourceLimitMemory: '4Gi'
+        ),
+        containerTemplate(
+            name: 'mattermost-inbucket', 
+            image: 'jhillyerd/inbucket:latest', 
+            ports: [
+                portMapping(name: 'inbucket1', hostPost: 9000, containerPort: 10080),
+                portMapping(name: 'inbucket2', hostPost: 2500, containerPort: 10025),
+            ],
+            resourceRequestCpu: '250m',
+            resourceLimitCpu: '250m',
+            resourceRequestMemory: '256Mi',
+            resourceLimitMemory: '256Mi'
+        ),
+        containerTemplate(
+            name: 'mattermost-openldap', 
+            image: 'osixia/openldap:1.1.6', 
+            ports: [
+                portMapping(name: 'openldap1', hostPost: 389, containerPort: 389),
+                portMapping(name: 'openldap2', hostPost: 636, containerPort: 636),
+            ],
+            envVars: [
+                containerEnvVar(key: 'LDAP_TLS_VERIFY_CLIENT', value: 'never'),
+                containerEnvVar(key: 'LDAP_ORGANISATION', value: 'Mattermost Test'),
+                containerEnvVar(key: 'LDPA_DOMAIN', value: 'mm.test.com'),
+                containerEnvVar(key: 'LDAP_ADMIN_PASSWORD', value: 'mostest')
+            ],
+            resourceRequestCpu: '250m',
+            resourceLimitCpu: '250m',
+            resourceRequestMemory: '256Mi',
+            resourceLimitMemory: '256Mi'
+        ),
+        containerTemplate(
+            name: 'mattermost-elasticsearch', 
+            image: 'grundleborg/elasticsearch:latest', 
+            ports: [
+                portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200),
+            ],
+            envVars: [
+                containerEnvVar(key: 'http.host', value: '0.0.0.0'),
+                containerEnvVar(key: 'transport.host', value: '127.0.0.1'),
+                containerEnvVar(key: 'ES_JAVA_OPTS', value: '-Xmx250m -Xmx250m'),
+            ],
+            resourceRequestCpu: '250m',
+            resourceLimitCpu: '250m',
+            resourceRequestMemory: '256Mi',
+            resourceLimitMemory: '256Mi'
+        ),
+        containerTemplate(
+            name: 'mattermost-redis', 
+            image: 'redis', 
+            ports: [
+                portMapping(name: 'redis', hostPost: 6379, containerPort: 6379),
+            ],
+            resourceRequestCpu: '250m',
+            resourceLimitCpu: '250m',
+            resourceRequestMemory: '256Mi',
+            resourceLimitMemory: '256Mi'
         )
     ])
 {
@@ -44,33 +101,41 @@ podTemplate(label: 'jenkins-slave',
                 git branch: 'master', credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/enterprise.git'
                 sh "git checkout ${env.BRANCH_NAME} || echo 'NO EE BRANCH'"
             }
+        }
+    }
+    stage('Prep Environment') {
+        // Link up the code to GOPATH.
+        sh 'mkdir -p /go/src/github.com/mattermost'
+        sh 'ln -s `pwd`/platform /go/src/github.com/mattermost/platform'
+        sh 'ln -s `pwd`/enterprise /go/src/github.com/mattermost/enterprise'
+            
+        // Modify config to run on jenkins
+        sh 'mv /go/src/github.com/mattermost/platform/config/default.json /go/src/github.com/mattermost/platform/config/config.json'
+        sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
 
-            // Link up the code to GOPATH.
-            sh 'mkdir -p /go/src/github.com/mattermost'
-            sh 'ln -s `pwd`/platform /go/src/github.com/mattermost/platform'
-            sh 'ln -s `pwd`/enterprise /go/src/github.com/mattermost/enterprise'
-                
-            // Modify config to run on jenkins
-            sh 'mv /go/src/github.com/mattermost/platform/config/default.json /go/src/github.com/mattermost/platform/config/config.json'
-            sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
+        // Setup openldap container
+        container('mattermost-openldap') {
+            sh 'echo -e "dn: ou=testusers,dc=mm,dc=test,dc=com\nobjectclass: organizationalunit" | ldapadd -x -D "cn=admin,dc=mm,dc=test,dc=com" -w mostest'
+            sh 'echo -e "dn: uid=test.one,ou=testusers,dc=mm,dc=test,dc=com\nobjectclass: iNetOrgPerson\nsn: User\ncn: Test1\nmail: success+testone@simulator.amazonses.com" | ldapadd -x -D "cn=admin,dc=mm,dc=test,dc=com" -w mostest'
+            sh 'ldappasswd -s Password1 -D "cn=admin,dc=mm,dc=test,dc=com" -x "uid=test.one,ou=testusers,dc=mm,dc=test,dc=com" -w mostest'
+            sh  'echo -e "dn: uid=test.two,ou=testusers,dc=mm,dc=test,dc=com\nobjectclass: iNetOrgPerson\nsn: User\ncn: Test2\nmail: success+testtwo@simulator.amazonses.com" | ldapadd -x -D "cn=admin,dc=mm,dc=test,dc=com" -w mostest'
+            sh  'ldappasswd -s Password1 -D "cn=admin,dc=mm,dc=test,dc=com" -x "uid=test.two,ou=testusers,dc=mm,dc=test,dc=com" -w mostest'
+            sh  'echo -e "dn: cn=tgroup,ou=testusers,dc=mm,dc=test,dc=com\nobjectclass: groupOfUniqueNames\nuniqueMember: uid=test.one,ou=testusers,dc=mm,dc=test,dc=com" | ldapadd -x -D "cn=admin,dc=mm,dc=test,dc=com" -w mostest'
+        }
+    }
+    stage('Style Checks') {
+        container('golang') {
+            sh 'cd /go/src/github.com/mattermost/platform && make check-style BUILD_NUMBER=$BUILD_NUMBER'
         }
     }
     stage('Build') {
-        container('mattermost-mysql'){
-            sh 'echo hey'
-        }
         container('golang') {
-            sh 'cd /go/src/github.com/mattermost/platform && make check-style'
-            sh 'cd /go/src/github.com/mattermost/platform && make test'
+            sh 'cd /go/src/github.com/mattermost/platform && make package BUILD_NUMBER=$BUILD_NUMBER'
         }
     }
     stage('Unit Tests') {
         container('golang') {
-            sh 'cd /go/src/github.com/mattermost/platform && make package'
-        }
-        container('golang') {
-            sh 'sed -i \'s/dockerhost/localhost/g\' config/config.json'
-            sh 'cd /go/src/github.com/mattermost/platform && go test -test.v -test.timeout=2000s github.com/mattermost/platform/api4'
+            sh 'cd /go/src/github.com/mattermost/platform && make test BUILD_NUMBER=$BUILD_NUMBER TESTFLAGS= TESTFLAGSEE='
         }
     }
   }
