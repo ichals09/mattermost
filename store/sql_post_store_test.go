@@ -14,7 +14,7 @@ import (
 	"github.com/mattermost/platform/utils"
 )
 
-func TestGuidAsPrimaryKey(t *testing.T) {
+func TestAutoAsPrimaryKey(t *testing.T) {
 	Setup()
 	layeredStore := store.(*LayeredStore)
 

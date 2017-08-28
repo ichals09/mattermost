@@ -40,7 +40,7 @@ func NewSqlPostStore(sqlStore SqlStore) PostStore {
 	s := &SqlPostStore{sqlStore}
 
 	for _, db := range sqlStore.GetAllConns() {
-		table := db.AddTableWithName(model.Post{}, "Posts").SetKeys(false, "Id")
+		table := db.AddTableWithName(model.Post{}, "Posts").SetKeys(true, "AutoId")
 		table.ColMap("Id").SetMaxSize(26)
 		table.ColMap("UserId").SetMaxSize(26)
 		table.ColMap("ChannelId").SetMaxSize(26)
