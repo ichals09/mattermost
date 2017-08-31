@@ -20,7 +20,7 @@ build-client:
 
 	cd $(BUILD_WEBAPP_DIR) && $(MAKE) build
 
-package: build build-client
+package:
 	@ echo Packaging mattermost
 
 	@# Remove any old files

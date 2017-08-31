@@ -85,6 +85,17 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
+        ),
+        containerTemplate(
+            name: 'mattermost-node', 
+            image: 'node', 
+            ttyEnabled: true, 
+            command: 'cat',
+            alwaysPullImage: false,
+            resourceRequestCpu: '1500m',
+            resourceLimitCpu: '2000m',
+            resourceRequestMemory: '2Gi',
+            resourceLimitMemory: '4Gi'
         )
     ])
 {
@@ -131,6 +142,12 @@ podTemplate(label: 'jenkins-slave',
         }
     }
     stage('Build') {
+        container('golang') {
+            sh 'cd /go/src/github.com/mattermost/platform && make build BUILD_NUMBER=$BUILD_NUMBER'
+        }
+        container('mattermost-node') {
+            sh 'cd /go/src/github.com/mattermost/platform && make build-client BUILD_NUMBER=$BUILD_NUMBER'
+        }
         container('golang') {
             sh 'cd /go/src/github.com/mattermost/platform && make package BUILD_NUMBER=$BUILD_NUMBER'
         }
