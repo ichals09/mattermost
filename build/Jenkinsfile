@@ -146,7 +146,7 @@ podTemplate(label: 'jenkins-slave',
             sh 'cd /go/src/github.com/mattermost/platform && make build BUILD_NUMBER=$BUILD_NUMBER'
         }
         container('mattermost-node') {
-            sh 'cd /go/src/github.com/mattermost/platform && make build-client BUILD_NUMBER=$BUILD_NUMBER'
+            sh 'make build-client BUILD_NUMBER=$BUILD_NUMBER'
         }
         container('golang') {
             sh 'cd /go/src/github.com/mattermost/platform && make package BUILD_NUMBER=$BUILD_NUMBER'
