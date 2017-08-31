@@ -36,8 +36,6 @@ package:
 	cp -RL templates $(DIST_PATH)
 	cp -RL i18n $(DIST_PATH)
 
-	mv $(DIST_PATH)/config/default.json $(DIST_PATH)/config/config.json
-
 	@# Disable developer settings
 	sed -i'' -e 's|"ConsoleLevel": "DEBUG"|"ConsoleLevel": "INFO"|g' $(DIST_PATH)/config/config.json
 	sed -i'' -e 's|"SiteURL": "http://localhost:8065"|"SiteURL": ""|g' $(DIST_PATH)/config/config.json
