@@ -298,6 +298,11 @@ func authorizeOAuthPage(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !oauthApp.IsValidRedirectURL(authRequest.RedirectUri) {
+		utils.RenderWebError(model.NewAppError("authorizeOAuthPage", "api.oauth.allow_oauth.redirect_callback.app_error", nil, "", http.StatusBadRequest), w, r)
+		return
+	}
+
 	isAuthorized := false
 
 	if _, err := app.GetPreferenceByCategoryAndNameForUser(c.Session.UserId, model.PREFERENCE_CATEGORY_AUTHORIZED_OAUTH_APP, authRequest.ClientId); err == nil {
