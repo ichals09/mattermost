@@ -36,6 +36,7 @@ podTemplate(label: 'jenkins-slave',
         containerTemplate(
             name: 'mattermost-openldap', 
             image: 'osixia/openldap:1.1.6', 
+            alwaysPullImage: true,
             ports: [portMapping(name: 'openldap1', hostPost: 389, containerPort: 389), portMapping(name: 'openldap2', hostPost: 636, containerPort: 636)],
             envVars: [envVar(key: 'LDAP_TLS_VERIFY_CLIENT', value: 'never'), envVar(key: 'LDAP_ORGANISATION', value: 'Mattermost Test'), envVar(key: 'LDAP_DOMAIN', value: 'mm.test.com'), envVar(key: 'LDAP_ADMIN_PASSWORD', value: 'mostest')],
             args: "--loglevel debug",
