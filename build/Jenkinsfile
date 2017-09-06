@@ -109,7 +109,7 @@ podTemplate(label: 'jenkins-slave',
         }
 
         // Setup openldap container
-        container('mattermost-openldap') {
+        /*container('mattermost-openldap') {
             sh 'echo \\"dn: ou=testusers,dc=mm,dc=test,dc=com\\" >> user1'
             sh 'echo \\"objectclass: organizationalunit\\" >> user1'
             sh 'ldapadd -x -D \\"cn=admin,dc=mm,dc=test,dc=com\\" -w mostest -f user1'
@@ -118,7 +118,7 @@ podTemplate(label: 'jenkins-slave',
             sh 'echo -e \\"dn: uid=test.two,ou=testusers,dc=mm,dc=test,dc=com\\nobjectclass: iNetOrgPerson\\nsn: User\\ncn: Test2\\nmail: success+testtwo@simulator.amazonses.com\\" | ldapadd -x -D \\"cn=admin,dc=mm,dc=test,dc=com\\" -w mostest'
             sh 'ldappasswd -s Password1 -D \\"cn=admin,dc=mm,dc=test,dc=com\\" -x \\"uid=test.two,ou=testusers,dc=mm,dc=test,dc=com\\" -w mostest'
             sh 'echo -e \\"dn: cn=tgroup,ou=testusers,dc=mm,dc=test,dc=com\\nobjectclass: groupOfUniqueNames\\nuniqueMember: uid=test.one,ou=testusers,dc=mm,dc=test,dc=com\\" | ldapadd -x -D \\"cn=admin,dc=mm,dc=test,dc=com\\" -w mostest'
-        }
+        }*/
     }
     stage('Style Checks') {
         container('golang') {
