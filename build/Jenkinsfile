@@ -11,7 +11,7 @@ podTemplate(label: 'jenkins-slave',
             resourceRequestMemory: '2Gi',
             resourceLimitMemory: '4Gi',
             ports: [portMapping(name: 'mysql', containerPort: 3306, hostPort: 3306)],
-            envVars: [containerEnvVar(key: 'MYSQL_ROOT_PASSWORD', value: 'mostest'), containerEnvVar(key: 'MYSQL_USER', value: 'mmuser'), containerEnvVar(key: 'MYSQL_PASSWORD', value: 'mostest'), containerEnvVar(key: 'MYSQL_DATABASE', value: 'mattermost_test']
+            envVars: [containerEnvVar(key: 'MYSQL_ROOT_PASSWORD', value: 'mostest'), containerEnvVar(key: 'MYSQL_USER', value: 'mmuser'), containerEnvVar(key: 'MYSQL_PASSWORD', value: 'mostest'), containerEnvVar(key: 'MYSQL_DATABASE', value: 'mattermost_test')]
         ),
         containerTemplate(
             name: 'golang', 
