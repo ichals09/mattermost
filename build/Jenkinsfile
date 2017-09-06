@@ -24,7 +24,7 @@ podTemplate(label: 'jenkins-slave',
             resourceRequestMemory: '2Gi',
             resourceLimitMemory: '4Gi'
         ),
-        /*containerTemplate(
+        containerTemplate(
             name: 'mattermost-inbucket', 
             image: 'jhillyerd/inbucket:latest', 
             ports: [portMapping(name: 'inbucket1', hostPost: 9000, containerPort: 10080), portMapping(name: 'inbucket2', hostPost: 2500, containerPort: 10025)],
@@ -32,7 +32,7 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        ),*/
+        ),
         /*containerTemplate(
             name: 'mattermost-openldap', 
             image: 'osixia/openldap:1.1.6', 
