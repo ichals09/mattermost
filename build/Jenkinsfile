@@ -33,7 +33,7 @@ podTemplate(label: 'jenkins-slave',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
         ),
-        /*containerTemplate(
+        containerTemplate(
             name: 'mattermost-openldap', 
             image: 'osixia/openldap:1.1.6', 
             ports: [
@@ -50,7 +50,7 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        ),*/
+        ),
         /*containerTemplate(
             name: 'mattermost-elasticsearch', 
             image: 'grundleborg/elasticsearch:latest', 
