@@ -122,7 +122,7 @@ podTemplate(label: 'jenkins-slave',
             sh 'ln -s `pwd`/enterprise /go/src/github.com/mattermost/enterprise'
 
             // Install build deps
-            sh 'apt install zip -y'
+            sh 'apt-get update && apt-get install zip -y'
                 
             // Modify config to run on jenkins
             sh 'mv /go/src/github.com/mattermost/platform/config/default.json /go/src/github.com/mattermost/platform/config/config.json'
