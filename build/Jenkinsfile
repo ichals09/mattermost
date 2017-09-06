@@ -16,7 +16,7 @@ podTemplate(label: 'jenkins-slave',
                 containerEnvVar(key: 'MYSQL_USER', value: 'mmuser'),
                 containerEnvVar(key: 'MYSQL_PASSWORD', value: 'mostest'),
                 containerEnvVar(key: 'MYSQL_DATABASE', value: 'mattermost_test')
-            ],
+            ]
         ),
         containerTemplate(
             name: 'golang', 
@@ -53,13 +53,17 @@ podTemplate(label: 'jenkins-slave',
                 containerEnvVar(key: 'LDAP_ORGANISATION', value: 'Mattermost Test'),
                 containerEnvVar(key: 'LDAP_DOMAIN', value: 'mm.test.com'),
                 containerEnvVar(key: 'LDAP_ADMIN_PASSWORD', value: 'mostest')
-            ]
+            ],
+            resourceRequestCpu: '250m',
+            resourceLimitCpu: '250m',
+            resourceRequestMemory: '256Mi',
+            resourceLimitMemory: '256Mi'
         ),
         containerTemplate(
             name: 'mattermost-elasticsearch', 
             image: 'grundleborg/elasticsearch:latest', 
             ports: [
-                portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200),
+                portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200)
             ],
             envVars: [
                 containerEnvVar(key: 'http.host', value: '0.0.0.0'),
@@ -75,7 +79,7 @@ podTemplate(label: 'jenkins-slave',
             name: 'mattermost-redis', 
             image: 'redis', 
             ports: [
-                portMapping(name: 'redis', hostPost: 6379, containerPort: 6379),
+                portMapping(name: 'redis', hostPost: 6379, containerPort: 6379)
             ],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
