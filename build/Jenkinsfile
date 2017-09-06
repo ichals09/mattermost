@@ -81,7 +81,8 @@ podTemplate(label: 'jenkins-slave',
             resourceRequestMemory: '2Gi',
             resourceLimitMemory: '4Gi'
         )
-    ])
+    ]
+)
 {
   node('jenkins-slave') {
     stage('Checkout') {
