@@ -11,12 +11,7 @@ podTemplate(label: 'jenkins-slave',
             resourceRequestMemory: '2Gi',
             resourceLimitMemory: '4Gi',
             ports: [portMapping(name: 'mysql', containerPort: 3306, hostPort: 3306)],
-            envVars: [
-                containerEnvVar(key: 'MYSQL_ROOT_PASSWORD', value: 'mostest'),
-                containerEnvVar(key: 'MYSQL_USER', value: 'mmuser'),
-                containerEnvVar(key: 'MYSQL_PASSWORD', value: 'mostest'),
-                containerEnvVar(key: 'MYSQL_DATABASE', value: 'mattermost_test')
-            ]
+            envVars: [containerEnvVar(key: 'MYSQL_ROOT_PASSWORD', value: 'mostest'), containerEnvVar(key: 'MYSQL_USER', value: 'mmuser'), containerEnvVar(key: 'MYSQL_PASSWORD', value: 'mostest'), containerEnvVar(key: 'MYSQL_DATABASE', value: 'mattermost_test']
         ),
         containerTemplate(
             name: 'golang', 
@@ -32,10 +27,7 @@ podTemplate(label: 'jenkins-slave',
         containerTemplate(
             name: 'mattermost-inbucket', 
             image: 'jhillyerd/inbucket:latest', 
-            ports: [
-                portMapping(name: 'inbucket1', hostPost: 9000, containerPort: 10080),
-                portMapping(name: 'inbucket2', hostPost: 2500, containerPort: 10025)
-            ],
+            ports: [portMapping(name: 'inbucket1', hostPost: 9000, containerPort: 10080), portMapping(name: 'inbucket2', hostPost: 2500, containerPort: 10025)],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
@@ -62,14 +54,8 @@ podTemplate(label: 'jenkins-slave',
         containerTemplate(
             name: 'mattermost-elasticsearch', 
             image: 'grundleborg/elasticsearch:latest', 
-            ports: [
-                portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200)
-            ],
-            envVars: [
-                containerEnvVar(key: 'http.host', value: '0.0.0.0'),
-                containerEnvVar(key: 'transport.host', value: '127.0.0.1'),
-                containerEnvVar(key: 'ES_JAVA_OPTS', value: '-Xmx250m -Xmx250m')
-            ],
+            ports: [portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200)],
+            envVars: [containerEnvVar(key: 'http.host', value: '0.0.0.0'), containerEnvVar(key: 'transport.host', value: '127.0.0.1'), containerEnvVar(key: 'ES_JAVA_OPTS', value: '-Xmx250m -Xmx250m')],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
@@ -78,9 +64,7 @@ podTemplate(label: 'jenkins-slave',
         containerTemplate(
             name: 'mattermost-redis', 
             image: 'redis', 
-            ports: [
-                portMapping(name: 'redis', hostPost: 6379, containerPort: 6379)
-            ],
+            ports: [portMapping(name: 'redis', hostPost: 6379, containerPort: 6379)],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
