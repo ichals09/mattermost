@@ -51,7 +51,7 @@ podTemplate(label: 'jenkins-slave',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
         ),
-        /*containerTemplate(
+        containerTemplate(
             name: 'mattermost-elasticsearch', 
             image: 'grundleborg/elasticsearch:latest', 
             ports: [portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200)],
@@ -60,7 +60,7 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
-        ),
+        ),/*
         containerTemplate(
             name: 'mattermost-redis', 
             image: 'redis', 
