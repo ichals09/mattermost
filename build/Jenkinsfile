@@ -52,19 +52,19 @@ podTemplate(label: 'jenkins-slave',
             resourceLimitMemory: '256Mi'
         ),
         containerTemplate(
-            name: 'mattermost-elasticsearch', 
-            image: 'grundleborg/elasticsearch:latest', 
-            ports: [portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200)],
-            envVars: [containerEnvVar(key: 'http.host', value: '0.0.0.0'), containerEnvVar(key: 'transport.host', value: '127.0.0.1'), containerEnvVar(key: 'ES_JAVA_OPTS', value: '-Xmx250m -Xmx250m')],
+            name: 'mattermost-redis', 
+            image: 'redis', 
+            ports: [portMapping(name: 'redis', hostPost: 6379, containerPort: 6379)],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
             resourceLimitMemory: '256Mi'
         ),/*
         containerTemplate(
-            name: 'mattermost-redis', 
-            image: 'redis', 
-            ports: [portMapping(name: 'redis', hostPost: 6379, containerPort: 6379)],
+            name: 'mattermost-elasticsearch', 
+            image: 'grundleborg/elasticsearch:latest', 
+            ports: [portMapping(name: 'elasticsearch', hostPost: 9200, containerPort: 9200)],
+            envVars: [containerEnvVar(key: 'http.host', value: '0.0.0.0'), containerEnvVar(key: 'transport.host', value: '127.0.0.1'), containerEnvVar(key: 'ES_JAVA_OPTS', value: '-Xmx250m -Xmx250m')],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
