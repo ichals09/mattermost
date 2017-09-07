@@ -138,6 +138,7 @@ podTemplate(label: 'jenkins-slave',
     }
     stage('Unit Tests') {
         container('golang') {
+            sh 'cd /go/src/github.com/mattermost/platform && cat config/config.json'
             sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
             sh 'cd /go/src/github.com/mattermost/platform && make test BUILD_NUMBER=$BUILD_NUMBER TESTFLAGS= TESTFLAGSEE='
         }
