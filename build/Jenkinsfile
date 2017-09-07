@@ -27,7 +27,7 @@ podTemplate(label: 'jenkins-slave',
         containerTemplate(
             name: 'mattermost-inbucket', 
             image: 'jhillyerd/inbucket:latest', 
-            ports: [portMapping(name: 'inbucket1', hostPost: 9000, containerPort: 10080), portMapping(name: 'inbucket2', hostPost: 2500, containerPort: 10025)],
+            ports: [portMapping(name: 'inbucket', hostPost: 10025, containerPort: 10025)],
             resourceRequestCpu: '250m',
             resourceLimitCpu: '250m',
             resourceRequestMemory: '256Mi',
@@ -106,6 +106,7 @@ podTemplate(label: 'jenkins-slave',
             // Modify config to run on jenkins
             sh 'mv /go/src/github.com/mattermost/platform/config/default.json /go/src/github.com/mattermost/platform/config/config.json'
             sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
+            sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/2500/10025/g\' config/config.json'
         }
 
         // Setup openldap container
@@ -138,8 +139,6 @@ podTemplate(label: 'jenkins-slave',
     }
     stage('Unit Tests') {
         container('golang') {
-            sh 'cd /go/src/github.com/mattermost/platform && cat config/config.json'
-            sh 'cd /go/src/github.com/mattermost/platform && sed -i \'s/dockerhost/localhost/g\' config/config.json'
             sh 'cd /go/src/github.com/mattermost/platform && make test BUILD_NUMBER=$BUILD_NUMBER TESTFLAGS= TESTFLAGSEE='
         }
     }
