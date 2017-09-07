@@ -148,7 +148,7 @@ podTemplate(label: 'jenkins-slave',
         }
     }
     stage('S3 Publish') {
-        step([$class: 'S3BucketPublisher', dontWaitForConcurrentBuildCompletion: false, entries: [[bucket: 'releases.mattermost.com/mattermost-server/${env.BRAANCH_NAME}', excludedFile: '', flatten: true, gzipFiles: false, keepForever: false, managedArtifacts: false, noUploadOnFailure: true, selectedRegion: 'us-east-1', showDirectlyInBrowser: false, sourceFile: 'mattermost-server/dist/mattermost-enterprise*', storageClass: 'STANDARD', uploadFromSlave: false, useServerSideEncryption: false, userMetadata: [[key: 'Cache-Control', value: 'no-cache']]]], profileName: 'Releases', userMetadata: []])
+        step([$class: 'S3BucketPublisher', dontWaitForConcurrentBuildCompletion: false, entries: [[bucket: "releases.mattermost.com/mattermost-server/${env.BRANCH_NAME}", excludedFile: '', flatten: true, gzipFiles: false, keepForever: false, managedArtifacts: false, noUploadOnFailure: true, selectedRegion: 'us-east-1', showDirectlyInBrowser: false, sourceFile: 'mattermost-server/dist/mattermost-enterprise*', storageClass: 'STANDARD', uploadFromSlave: false, useServerSideEncryption: false, userMetadata: [[key: 'Cache-Control', value: 'no-cache']]]], profileName: 'Releases', userMetadata: []])
     }
   }
 }
