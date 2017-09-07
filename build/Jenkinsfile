@@ -83,7 +83,7 @@ podTemplate(label: 'jenkins-slave',
         container('golang') {
             // Checkout mattermost-server
             dir('mattermost-server') {
-                git branch: env.BRANCH_NAME, credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/mattermost-server.git'
+                checkout scm
             }
 
             dir('mattermost-webapp') {
