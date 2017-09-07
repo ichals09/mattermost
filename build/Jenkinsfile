@@ -19,6 +19,7 @@ podTemplate(label: 'jenkins-slave',
             ttyEnabled: true, 
             command: 'cat',
             alwaysPullImage: false,
+            //envVars: [envVar(key: 'GOPATH', value: 
             resourceRequestCpu: '1000m',
             resourceLimitCpu: '2000m',
             resourceRequestMemory: '2Gi',
@@ -81,6 +82,9 @@ podTemplate(label: 'jenkins-slave',
   node('jenkins-slave') {
     stage('Checkout') {
         container('golang') {
+            sh 'pwd'
+            sh 'ls -alh'
+
             // Checkout mattermost-server
             dir('mattermost-server') {
                 git branch: env.BRANCH_NAME, credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/mattermost-server.git'
@@ -96,6 +100,8 @@ podTemplate(label: 'jenkins-slave',
                 git branch: 'master', credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/enterprise.git'
                 sh "git checkout ${env.BRANCH_NAME} || echo 'NO EE BRANCH'"
             }
+            sh 'pwd'
+            sh 'ls -alh'
         }
     }
     stage('Prep Environment') {
@@ -104,6 +110,8 @@ podTemplate(label: 'jenkins-slave',
             sh 'mkdir -p /go/src/github.com/mattermost'
             sh 'ln -s `pwd`/mattermost-server /go/src/github.com/mattermost/mattermost-server'
             sh 'ln -s `pwd`/enterprise /go/src/github.com/mattermost/enterprise'
+            sh 'pwd'
+            sh 'ls -alh'
 
             // Install build deps
             sh 'apt-get update && apt-get install zip -y'
