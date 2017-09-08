@@ -80,20 +80,22 @@ podTemplate(label: 'jenkins-slave',
 {
   node('jenkins-slave') {
     stage('Checkout') {
-        // Checkout mattermost-server
-        dir('mattermost-server') {
-            git credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/mattermost-server.git'
-        }
+        container('golang') {
+            // Checkout mattermost-server
+            dir('mattermost-server') {
+                git credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/mattermost-server.git'
+            }
 
-        dir('mattermost-webapp') {
-            git branch: 'master', credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/mattermost-webapp.git'
-            sh "git checkout ${env.BRANCH_NAME} || echo 'NO CLIENT BRANCH'"
-        }
+            dir('mattermost-webapp') {
+                git branch: 'master', credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/mattermost-webapp.git'
+                sh "git checkout ${env.BRANCH_NAME} || echo 'NO CLIENT BRANCH'"
+            }
 
-        // Checkout enterprise
-        dir('enterprise') {
-            git branch: 'master', credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/enterprise.git'
-            sh "git checkout ${env.BRANCH_NAME} || echo 'NO EE BRANCH'"
+            // Checkout enterprise
+            dir('enterprise') {
+                git branch: 'master', credentialsId: 'a8f2d76b-8a29-4525-b57a-eb0447d7779c', url: 'https://github.com/mattermost/enterprise.git'
+                sh "git checkout ${env.BRANCH_NAME} || echo 'NO EE BRANCH'"
+            }
         }
     }
     stage('Prep Environment') {
